@@ -1,96 +1,256 @@
-[index.html](https://github.com/user-attachments/files/24987020/index.html)
+[main.html](https://github.com/user-attachments/files/24987021/main.html)
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>로그인 - 내탓네탓</title>
+    <title>메인 - 내탓네탓</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
-        /* 기존 스타일 유지 */
-        body { margin: 0; background-color: #ffffff; font-family: 'Pretendard', sans-serif; color: #333333; }
+        body { margin: 0; background-color: #f5f5f5; font-family: 'Pretendard', sans-serif; color: #333; }
+        
         .mobile-container {
             width: 100%; max-width: 430px; min-height: 100vh; margin: 0 auto;
+            background-color: #ffffff; position: relative;
+            display: flex; flex-direction: column; align-items: center; 
+            padding-top: 60px; /* 최상단 약 1cm 여유 */
+            box-sizing: border-box;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
+        }
+
+        /* 🔔 알림 아이콘 */
+        .notification-header {
+            position: absolute; top: 20px; right: 20px; z-index: 100;
+        }
+        .noti-btn {
+            background: none; border: none; font-size: 24px; cursor: pointer; position: relative;
+        }
+        .noti-badge {
+            position: absolute; top: -2px; right: -2px; background: red; color: white;
+            font-size: 10px; width: 16px; height: 16px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+            display: none; 
+        }
+
+        .noti-dropdown {
+            display: none; position: absolute; top: 55px; right: 20px; width: 280px;
+            background: white; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border: 1px solid #eee; overflow-y: auto; max-height: 400px; z-index: 101;
+        }
+        .noti-item {
+            padding: 15px; border-bottom: 1px solid #f9f9f9; font-size: 13px; line-height: 1.4;
+        }
+        .noti-item:last-child { border-bottom: none; }
+        .noti-item .time { color: #999; font-size: 11px; margin-top: 5px; }
+        .noti-title { font-weight: bold; margin-bottom: 3px; display: block; }
+
+        /* 실시간 상태 바 */
+        .live-status {
+            background: rgba(0, 200, 0, 0.1); border: 1px solid #00aa00; color: #00aa00;
+            padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; margin-bottom: 8px;
+        }
+
+        /* 유저 정보 바 */
+        .user-status-bar {
+            background: #f9f9f9; border: 1px solid rgba(255, 215, 0, 0.5);
+            padding: 8px 15px; border-radius: 12px; display: flex; gap: 10px;
+            font-size: 12px; 
+            margin-bottom: 20px; /* 로고와의 간격 0.5cm */
+            align-items: center; color: #333;
+        }
+        .rank-text { color: #9d4edd; font-weight: bold; }
+        .coin-text { color: #b8860b; font-weight: bold; }
+
+        /* 로고 스타일 */
+        .logo { 
+            font-size: 24px; font-weight: 900; 
+            margin-bottom: 20px; /* 로고 바로 밑 첫 번째 선과의 간격 */
+            text-align: center; line-height: 1.1; color: #333; 
+        }
+        .logo span { font-size: 28px; }
+
+        /* 가로 경계선 스타일 */
+        .divider {
+            width: 90%;
+            height: 1px;
+            background-color: #eee;
+        }
+
+        /* 버튼 3x2 그리드 설정 */
+        .menu-group { 
+            width: 90%; 
+            margin-top: 20px; /* 두 번째 선과 버튼 사이의 간격 */
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            grid-template-rows: repeat(2, 1fr);    
+            gap: 10px; 
+        }
+        
+        .menu-btn {
+            background: #ffffff; border: 1px solid #ddd; 
+            padding: 15px 5px; border-radius: 12px; color: #333;
+            text-decoration: none; font-size: 13px; font-weight: bold; 
+            text-align: center; transition: 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 40px; box-sizing: border-box;
+            gap: 5px;
         }
-        .logo-area { text-align: center; margin-bottom: 50px; }
-        .logo-icon { font-size: 50px; margin-bottom: 10px; display: block; }
-        .logo-title { color: #000000; margin-bottom: 5px; line-height: 1.1; }
-        .title-bold { font-size: 38px; font-weight: 900; letter-spacing: -1.5px; display: block; }
-        .title-light { font-weight: 200; font-size: 20px; display: block; margin-top: 2px; }
-        .logo-sub { font-size: 15px; color: #888; margin-top: 15px; }
-
-        .login-group { width: 100%; display: flex; flex-direction: column; gap: 15px; }
-        .login-btn {
-            width: 100%; height: 55px; border-radius: 12px; border: none;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s;
-        }
-        .btn-kakao { background-color: #FEE500; color: #3c1e1e; }
-        .btn-google { background-color: #ffffff; color: #757575; border: 1px solid #ddd; }
-        .login-btn:active { transform: scale(0.98); opacity: 0.9; }
-
-        /* 요청하신 화이트 폰트 스타일 */
-        .info-text { margin-top: 30px; font-size: 12px; color: #999; text-align: center; line-height: 1.6; }
-        .highlight { color: white; background-color: #333; padding: 2px 6px; border-radius: 4px; }
+        .menu-btn:active { background-color: #f9f9f9; transform: scale(0.95); }
+        .tower-btn { border-color: #ffd700; color: #b8860b; }
     </style>
 </head>
 <body>
     <div class="mobile-container">
-        <div class="logo-area">
-            <span class="logo-icon">⚖️</span>
-            <div class="logo-title">
-                <span class="title-bold">내탓네탓</span>
-                <span class="title-light">: 이게 내 잘못이야?</span>
-            </div>
-            <div class="logo-sub">억울한 마음, 시원한 판결</div>
+        <div class="notification-header">
+            <button class="noti-btn" onclick="toggleNoti(event)">
+                🔔 <span class="noti-badge" id="notiCount">0</span>
+            </button>
+            <div class="noti-dropdown" id="notiDropdown"></div>
         </div>
 
-        <div class="login-group">
-            <button class="login-btn btn-kakao" onclick="handleLogin('kakao')">
-                카카오로 시작하기
-            </button>
-            <button class="login-btn btn-google" onclick="handleLogin('google')">
-                구글로 시작하기
-            </button>
+        <div class="live-status" id="liveUserBadge">● 실시간 접속 배심원: 연결 중...</div>
+
+        <div class="user-status-bar">
+            <div class="status-item"><span style="color: #666;">등급:</span> <span id="mainRank" class="rank-text">로딩 중...</span></div>
+            <div style="width: 1px; height: 12px; background: #ddd;"></div>
+            <div class="status-item"><span style="color: #666;">보유:</span> <span class="coin-text">🟡 <span id="mainCoin">0</span></span></div>
         </div>
 
-        <p class="info-text">
-            로그인 시 이용약관 및 개인정보 처리방침에 동의하게 되며,<br>
-            서비스 분석을 위해 <span class="highlight">나이와 성별</span> 정보를 수집합니다.
-        </p>
+        <div class="logo">내탓 <span>⚖️</span> 네탓</div>
+
+        <div class="divider"></div>
+        <div style="height: 100px;"></div> <div class="divider"></div>
+
+        <div class="menu-group">
+            <a href="write.html" class="menu-btn"><span>⚖️</span>사건 접수</a>
+            <a href="list.html" class="menu-btn"><span>📜</span>기록실</a>
+            <a href="retry.html" class="menu-btn"><span>🔨</span>재심단</a>
+            <a href="mypage.html" class="menu-btn"><span>👤</span>마이페이지</a>
+            <a href="#" class="menu-btn" style="opacity: 0.5; font-size: 11px;"><span>❓</span>준비중</a>
+            <a href="#" class="menu-btn" style="opacity: 0.5; font-size: 11px;"><span>❓</span>준비중</a>
+        </div>
     </div>
 
     <script>
-        function handleLogin(platform) {
-            const mockSocialId = platform + "_user_12345";
-            let allUsers = JSON.parse(localStorage.getItem('registeredUsers') || '{}');
-            
-            if (allUsers[mockSocialId]) {
-                alert("반가워요! 다시 오셨군요.");
-                localStorage.setItem('currentUser', JSON.stringify(allUsers[mockSocialId]));
-                
-                // 1. 뒤로가기 방지를 위해 replace 사용
-                location.replace('main.html'); 
-            } else {
-                alert("신규 가입을 환영합니다! 가입 처리를 완료합니다.");
-                
-                // 금색 코인 규칙 적용: 질문(100), 재심(300) [cite: 2026-01-29]
-                const newUser = {
-                    id: mockSocialId,
-                    platform: platform,
-                    joinDate: new Date().toISOString(),
-                    coins: 1000 // 초기 코인 설정 (예시)
-                };
-                
-                allUsers[mockSocialId] = newUser;
-                localStorage.setItem('registeredUsers', JSON.stringify(allUsers));
-                localStorage.setItem('currentUser', JSON.stringify(newUser));
-                
-                // 2. 뒤로가기 방지를 위해 replace 사용
-                location.replace('main.html');
+        // Firebase 설정 (기존 프로젝트 ID 유지)
+        const firebaseConfig = {
+            projectId: "sxsx-75c73",
+            storageBucket: "sxsx-75c73.appspot.com",
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        async function updateLastActive() {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            if (!currentUser || !currentUser.nickname) return;
+            try {
+                await db.collection('users').doc(currentUser.nickname).set({
+                    lastActive: firebase.firestore.FieldValue.serverTimestamp(),
+                    nickname: currentUser.nickname
+                }, { merge: true });
+            } catch (e) { console.error("활동 기록 실패:", e); }
+        }
+
+        async function updateLiveUsers() {
+            try {
+                const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+                const snapshot = await db.collection('users').where('lastActive', '>=', fiveMinutesAgo).get();
+                const count = snapshot.size || 1; 
+                document.getElementById('liveUserBadge').innerText = `● 실시간 접속 배심원: ${count}명`;
+            } catch (error) { document.getElementById('liveUserBadge').innerText = `● 실시간 접속 배심원: 1명`; }
+        }
+
+        function initSecurity() {
+            if (!localStorage.getItem('currentUser')) { location.replace('index.html'); return; }
+            history.pushState(null, null, location.href);
+            window.onpopstate = function() {
+                history.pushState(null, null, location.href);
+                alert("로그아웃하시려면 마이페이지를 이용해주세요.");
+            };
+        }
+
+        function toggleNoti(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('notiDropdown');
+            const isVisible = dropdown.style.display === 'block';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) document.getElementById('notiCount').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (!event.target.closest('.notification-header')) {
+                document.getElementById('notiDropdown').style.display = 'none';
             }
         }
+
+        function checkNewNotifications() {
+            const cases = JSON.parse(localStorage.getItem('myCases') || '[]');
+            let notifications = JSON.parse(localStorage.getItem('userNoti') || '[]');
+            let hasNew = false;
+            const now = Date.now();
+            cases.forEach(item => {
+                const isClosed = (item.endTime - now) <= 0;
+                if (isClosed && !item.notified) {
+                    let msg = "";
+                    const currentNick = JSON.parse(localStorage.getItem('currentUser')).nickname;
+                    if (item.authorName === currentNick) msg = `⚖️ 판결 종료: '${item.title}' 결과를 확인하세요.`;
+                    else if (item.voted) msg = `🗳️ 결과 알림: 참여하신 '${item.title}' 종료.`;
+                    
+                    if (msg) {
+                        notifications.unshift({ title: "판결 종료", content: msg, time: "방금 전" });
+                        item.notified = true;
+                        hasNew = true;
+                    }
+                }
+            });
+            if (hasNew) {
+                localStorage.setItem('userNoti', JSON.stringify(notifications));
+                localStorage.setItem('myCases', JSON.stringify(cases));
+            }
+            renderNotiList(notifications);
+        }
+
+        function renderNotiList(notifications) {
+            const listContainer = document.getElementById('notiDropdown');
+            const badge = document.getElementById('notiCount');
+            if (!notifications || notifications.length === 0) {
+                listContainer.innerHTML = '<div class="noti-item" style="text-align:center; color:#999;">새 알림이 없습니다.</div>';
+                badge.style.display = 'none';
+            } else {
+                badge.innerText = notifications.length > 9 ? '9+' : notifications.length;
+                badge.style.display = 'flex';
+                listContainer.innerHTML = notifications.map(n => `
+                    <div class="noti-item">
+                        <span class="noti-title">${n.title}</span>
+                        ${n.content}
+                        <div class="time">${n.time}</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function loadMainUserInfo() {
+            const userData = JSON.parse(localStorage.getItem('userData')) || { coin: 0 };
+            document.getElementById('mainCoin').innerText = (userData.coin || 0).toLocaleString();
+            const lp = parseInt(localStorage.getItem('userPoints') || '0');
+            const badgeEl = document.getElementById('mainRank');
+            let rankName = "신입 배심원";
+            if (lp >= 50000) rankName = "명예 대법관";
+            else if (lp >= 15000) rankName = "부장판사";
+            else if (lp >= 5000) rankName = "평판사";
+            else if (lp >= 1000) rankName = "사법연수생";
+            badgeEl.innerText = rankName;
+            checkNewNotifications();
+        }
+
+        window.onload = function() {
+            initSecurity();
+            updateLastActive(); 
+            updateLiveUsers();  
+            loadMainUserInfo();
+            setInterval(updateLiveUsers, 30000); 
+        };
     </script>
 </body>
 </html>
