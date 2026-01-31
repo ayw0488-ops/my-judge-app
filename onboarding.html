@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>정보 입력 - 내탓네탓</title>
+    <style>
+        body { margin: 0; background-color: #ffffff; font-family: 'Pretendard', sans-serif; color: #333333; }
+        .mobile-container {
+            width: 100%; max-width: 430px; min-height: 100vh; margin: 0 auto;
+            display: flex; flex-direction: column; padding: 40px 25px; box-sizing: border-box;
+        }
+
+        .header { margin-bottom: 30px; }
+        .step-title { font-size: 24px; font-weight: 800; margin-bottom: 10px; }
+        .step-desc { font-size: 14px; color: #888; line-height: 1.5; }
+        .highlight { color: white; font-weight: bold; background-color: #333; padding: 0 4px; border-radius: 4px; }
+
+        .form-group { margin-bottom: 25px; }
+        .label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #555; }
+        
+        .input-field {
+            width: 100%; height: 50px; border: 1px solid #ddd; border-radius: 10px;
+            padding: 0 15px; box-sizing: border-box; font-size: 16px; outline: none;
+        }
+        .input-field:focus { border-color: #b8860b; }
+
+        /* 글자수 제한 안내 텍스트 */
+        .limit-info { font-size: 11px; color: #999; margin-top: 5px; }
+
+        .gender-group { display: flex; gap: 10px; }
+        .gender-btn {
+            flex: 1; height: 50px; border: 1px solid #ddd; border-radius: 10px;
+            background: #fff; cursor: pointer; font-size: 15px; transition: 0.2s;
+        }
+        .gender-btn.active {
+            background: #333; color: #fff; border-color: #333;
+        }
+
+        .submit-btn {
+            margin-top: auto; width: 100%; height: 55px; background: #b8860b;
+            color: #fff; border: none; border-radius: 12px; font-size: 18px;
+            font-weight: bold; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        <div class="header">
+            <div class="step-title">반가워요! 👋</div>
+            <div class="step-desc">
+                정확한 판결 분석을 위해<br>
+                <span class="highlight">나이와 성별</span>을 딱 한 번만 알려주세요.
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="label">사용할 아이디</label>
+            <input type="text" id="nickname" class="input-field" placeholder="닉네임을 입력하세요">
+            <div class="limit-info">한글 최대 7자 / 영문 최대 10자 (숫자 포함 가능)</div>
+        </div>
+
+        <div class="form-group">
+            <label class="label">출생 연도</label>
+            <select id="birthYear" class="input-field">
+                <option value="">연도 선택</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="label">성별</label>
+            <div class="gender-group">
+                <button class="gender-btn" onclick="selectGender('남')">남성</button>
+                <button class="gender-btn" onclick="selectGender('여')">여성</button>
+            </div>
+        </div>
+
+        <button class="submit-btn" id="finishBtn" onclick="completeSignup()">가입 완료</button>
+    </div>
+
+    <script>
+        let selectedGender = '';
+        const tempSocialId = sessionStorage.getItem('tempSocialId');
+
+        const yearSelect = document.getElementById('birthYear');
+        for (let y = 2020; y >= 1950; y--) {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.innerText = `${y}년생`;
+            yearSelect.appendChild(opt);
+        }
+
+        function selectGender(gender) {
+            selectedGender = gender;
+            const btns = document.querySelectorAll('.gender-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+
+        // 닉네임 유효성 검사 함수
+        function validateNickname(name) {
+            const korCount = (name.match(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/g) || []).length;
+            const otherCount = name.length - korCount;
+            
+            // 한글이 1자라도 있으면 한글 기준(7자), 영문/숫자만 있으면 10자
+            if (korCount > 0) {
+                return name.length <= 7;
+            } else {
+                return name.length <= 10;
+            }
+        }
+
+        function completeSignup() {
+            const nickname = document.getElementById('nickname').value.trim();
+            const birthYear = document.getElementById('birthYear').value;
+
+            if (!nickname || !birthYear || !selectedGender) {
+                alert("모든 정보를 입력해주세요!");
+                return;
+            }
+
+            if (!validateNickname(nickname)) {
+                alert("아이디 글자수가 초과되었습니다.\n(한글 7자 또는 영문 10자)");
+                return;
+            }
+
+            const allUsers = JSON.parse(localStorage.getItem('registeredUsers') || '{}');
+            
+            const newUser = {
+                userId: tempSocialId,
+                nickname: nickname,
+                birthYear: birthYear,
+                gender: selectedGender,
+                coin: 500, // [2026-01-29] 가입 축하 코인 수정
+                dailyEarned: 0,
+                lastUpdateDate: new Date().toDateString()
+            };
+
+            allUsers[tempSocialId] = newUser;
+            localStorage.setItem('registeredUsers', JSON.stringify(allUsers));
+            localStorage.setItem('currentUser', JSON.stringify(newUser));
+            
+            alert("가입을 축하합니다! 금색 코인 500개가 지급되었습니다.");
+            
+            // 가입 후 메인 화면(index.html)으로 이동
+            location.href = 'index.html'; 
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>재심 판결단 - 내탓네탓</title>
+    <style>
+        body { margin: 0; background-color: #333; font-family: 'Pretendard', sans-serif; animation: fadeIn 0.8s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .mobile-container {
+            width: 100%; max-width: 430px; min-height: 100vh; margin: 0 auto;
+            background-image: url('images/bg.png'); background-size: cover; padding: 100px 20px 20px 20px; box-sizing: border-box;
+        }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; color: white; }
+        .back-btn { font-size: 28px; text-decoration: none; color: white; font-weight: bold; }
+        .retry-card {
+            background: rgba(0, 0, 0, 0.4); border: 1px solid #7b2cbf; border-radius: 18px; 
+            padding: 20px; margin-bottom: 30px; color: white; position: relative; overflow: visible !important;
+        }
+        .retry-tag { position: absolute; top: -12px; right: 15px; background: #ff4d4d; color: white; padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 100; }
+        .retry-title { font-size: 17px; font-weight: bold; color: #e0aaff; margin-bottom: 10px; }
+        .retry-info { font-size: 12px; color: #ffffff; font-weight: bold; margin-top: 15px; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        <div class="header">
+            <a href="main.html" class="back-btn">‹</a>
+            <h1 style="font-size: 20px; margin:0;">최종 재심 판결단</h1>
+            <div style="width: 28px;"></div>
+        </div>
+
+        <div id="retryList"></div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            const list = document.getElementById('retryList');
+            const savedCases = JSON.parse(localStorage.getItem('myCases') || '[]');
+            
+            // 재심 조건(isRetry가 true인 것만) 필터링
+            const retryCases = savedCases.filter(c => c.isRetry === true);
+
+            if (retryCases.length === 0) {
+                list.innerHTML = '<p style="color:white; text-align:center; margin-top:100px;">현재 재심 중인 사건이 없습니다.<br><br><small>(좋아요 10개 이상 시 재심 자동 상정)</small></p>';
+                return;
+            }
+
+            retryCases.forEach(item => {
+                const html = `
+                    <div class="retry-card" onclick="location.href='detail.html.html.html?id=${item.id}'">
+                        <div class="retry-tag">재심 진행 중</div>
+                        <div class="retry-title">${item.title}</div>
+                        <div style="font-size:14px; color:#eee;">${item.content.substring(0, 50)}...</div>
+                        <div class="retry-info">
+                            <span>❤️ 관심도: ${item.likes}</span>
+                            <span>판결 재요청됨</span>
+                        </div>
+                    </div>
+                `;
+                list.insertAdjacentHTML('beforeend', html);
+            });
+        }
+    </script>
+</body>
+</html>

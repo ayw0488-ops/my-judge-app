@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>최종 판결 - 내탓네탓</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        body { margin: 0; background-color: #f0f0f0; font-family: 'Pretendard', sans-serif; color: #333; }
+        .mobile-container {
+            width: 100%; max-width: 430px; margin: 0 auto; min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center; padding: 40px 20px; box-sizing: border-box;
+        }
+
+        /* 공유될 카드 스타일 */
+        #resultCard {
+            width: 100%; background: #ffffff; border-radius: 20px; padding: 30px 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); box-sizing: border-box;
+            position: relative; overflow: hidden; border: 2px solid #333;
+        }
+
+        .card-header { text-align: center; font-size: 14px; font-weight: bold; color: #b8860b; margin-bottom: 10px; }
+        .case-title { text-align: center; font-size: 20px; font-weight: 800; margin-bottom: 25px; line-height: 1.4; }
+
+        /* 그래프 영역 */
+        .vote-container { margin-bottom: 30px; }
+        .vote-labels { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-bottom: 8px; }
+        .vote-bar-bg { width: 100%; height: 35px; background: #eee; border-radius: 10px; display: flex; overflow: hidden; }
+        .bar-my { background: #ff4d4d; color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; transition: 1s; }
+        .bar-your { background: #4d79ff; color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; transition: 1s; }
+
+        /* 결과 문구 */
+        .verdict-box {
+            text-align: center; background: #333; color: white; padding: 20px 15px;
+            border-radius: 12px; font-size: 18px; font-weight: bold; margin-bottom: 25px;
+            line-height: 1.5;
+        }
+        .white-text { color: white; } /* [2026-01-29] 강조색 적용 */
+
+        .best-comment-box {
+            background: #f9f9f9; border-left: 4px solid #b8860b; padding: 15px; font-size: 14px; line-height: 1.6;
+        }
+        .comment-label { font-size: 12px; color: #888; font-weight: bold; margin-bottom: 5px; }
+
+        /* 하단 버튼 */
+        .action-area { width: 100%; margin-top: 30px; display: flex; flex-direction: column; gap: 10px; }
+        .btn {
+            width: 100%; height: 55px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; cursor: pointer;
+        }
+        .btn-share { background: #333; color: white; } /* 공유하기 버튼 */
+        .btn-save { background: #b8860b; color: white; }
+        .btn-home { background: #eee; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        <div id="resultCard">
+            <div class="card-header">FINAL VERDICT REPORT</div>
+            <div id="displayTitle" class="case-title">사건 제목을 불러오는 중...</div>
+            
+            <div class="vote-container">
+                <div class="vote-labels">
+                    <span>내 탓</span>
+                    <span>네 탓</span>
+                </div>
+                <div class="vote-bar-bg">
+                    <div id="barMy" class="bar-my" style="width: 50%">0%</div>
+                    <div id="barYour" class="bar-your" style="width: 50%">0%</div>
+                </div>
+            </div>
+
+            <div class="verdict-box">
+                배심원단 최종 판결: <br>
+                <span id="finalVerdict" class="white-text">분석 중...</span>
+            </div>
+
+            <div class="best-comment-box">
+                <div class="comment-label">BEST JURY COMMENT</div>
+                <div id="bestCommentText">가장 공감을 많이 받은 평결이 이곳에 표시됩니다.</div>
+            </div>
+        </div>
+
+        <div class="action-area">
+            <button class="btn btn-share" onclick="shareResult()">📤 친구에게 공유하고 50코인 받기</button>
+            <button class="btn btn-save" onclick="downloadResult()">📸 판결문 이미지로 저장하기</button>
+            <button class="btn btn-home" onclick="location.href='index.html'">메인으로 돌아가기</button>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const caseId = urlParams.get('id');
+            const savedCases = JSON.parse(localStorage.getItem('myCases') || '[]');
+            
+            const targetCase = savedCases.find(c => c.id == caseId);
+
+            if (targetCase) {
+                const myVotes = targetCase.voteCount.my || 0;
+                const yourVotes = targetCase.voteCount.your || 0;
+                const total = myVotes + yourVotes || 1;
+
+                const myPercent = Math.round((myVotes / total) * 100);
+                const yourPercent = 100 - myPercent;
+
+                document.getElementById('displayTitle').innerText = `"${targetCase.title}"`;
+                document.getElementById('barMy').style.width = myPercent + '%';
+                document.getElementById('barMy').innerText = myPercent + '%';
+                document.getElementById('barYour').style.width = yourPercent + '%';
+                document.getElementById('barYour').innerText = yourPercent + '%';
+
+                // --- [내 탓 비율별 풍자 문구 설정] ---
+                const verdictSpan = document.getElementById('finalVerdict');
+                let message = "";
+
+                if (myPercent < 50) {
+                    message = "거봐, 내 잘못 아니라고 했지? 😎";
+                } else if (myPercent >= 50 && myPercent < 55) {
+                    message = "흠.. 잘잘못을 따지기 참 애매하네요. 도긴개긴?";
+                } else if (myPercent >= 55 && myPercent < 65) {
+                    message = "크게 잘못한 건 아니지만.. 솔직히 님 잘못이 맞긴 한 듯? 🤔";
+                } else if (myPercent >= 65 && myPercent < 75) {
+                    message = "이 정도면 본인도 알 텐데? 슬슬 양심이 찔릴 시간입니다.";
+                } else if (myPercent >= 75 && myPercent < 85) {
+                    message = "와.. 실화인가요? 배심원 대다수가 님 탓이라고 소리 지르는 중!";
+                } else {
+                    message = "남 탓 지리구요~ 이 정도면 거의 예술 점수 드려야 할 판 👏";
+                }
+
+                verdictSpan.innerText = message;
+
+                if (targetCase.comments && targetCase.comments.length > 0) {
+                    document.getElementById('bestCommentText').innerText = targetCase.comments[0].text;
+                }
+            }
+        };
+
+        // 코인 지급 로직
+        function awardCoin(amount) {
+            let userData = JSON.parse(localStorage.getItem('userData')) || { coin: 0 };
+            userData.coin += amount;
+            localStorage.setItem('userData', JSON.stringify(userData));
+            alert(`🪙 공유 보상으로 금색 코인 ${amount}개가 지급되었습니다!`);
+        }
+
+        // 이미지 파일로 공유하는 기능
+        async function shareResult() {
+            const card = document.getElementById('resultCard');
+            const canvas = await html2canvas(card, { scale: 2 });
+            const dataUrl = canvas.toDataURL('image/png');
+            
+            const response = await fetch(dataUrl);
+            const blob = await response.blob();
+            const file = new File([blob], 'verdict_result.png', { type: 'image/png' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: '내탓네탓 판결 결과',
+                        text: '이 판결 결과 좀 봐주세요!'
+                    });
+                    // 공유 창이 성공적으로 호출되면 코급 지급
+                    awardCoin(50);
+                } catch (err) { 
+                    console.log("공유 취소 또는 실패:", err); 
+                }
+            } else {
+                alert("현재 브라우저에서는 공유하기를 지원하지 않습니다. 이미지 저장 기능을 이용해주세요!");
+            }
+        }
+
+        // 이미지 파일로 저장하는 기능
+        function downloadResult() {
+            const card = document.getElementById('resultCard');
+            html2canvas(card, { scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = '내탓네탓_판결보고서.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                alert("판결문 이미지가 저장되었습니다!");
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사건 상세 - 논쟁의 탑</title>
+    <style>
+        body { margin: 0; background-color: #ffffff; font-family: 'Pretendard', sans-serif; color: #333333; }
+        .mobile-container {
+            width: 100%; max-width: 430px; min-height: 100vh; margin: 0 auto;
+            display: flex; flex-direction: column; padding: 60px 20px; box-sizing: border-box;
+            background-color: #ffffff;
+        }
+
+        /* [수정] 헤더: 아이디 중앙 정렬을 위한 그리드 레이아웃 */
+        .header { 
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr; /* 좌(뒤로가기), 중(아이디), 우(코인) 비율 */
+            align-items: center; 
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee; 
+            margin-bottom: 20px; 
+        }
+        .header-left { display: flex; align-items: center; }
+        .back-btn { font-size: 28px; color: #333; text-decoration: none; font-weight: bold; cursor: pointer; line-height: 1; }
+        
+        /* 아이디 중앙 배치 */
+        .user-id { 
+            font-size: 14px; font-weight: bold; color: #666; 
+            text-align: center; 
+        }
+        
+        .header-right { display: flex; justify-content: flex-end; }
+        .coin-status { background: #f8f9fa; padding: 5px 12px; border-radius: 15px; border: 1px solid #ffd700; font-size: 13px; color: #333; }
+        
+        .case-card { background: #ffffff; border-radius: 20px; padding: 25px; margin-bottom: 20px; border: 1px solid #eeeeee; box-shadow: 0 4px 12px rgba(0,0,0,0.05); position: relative; }
+        
+        .title-wrapper { 
+            display: flex; align-items: center; justify-content: center; 
+            position: relative; margin-bottom: 15px; 
+        }
+        .case-title { font-size: 20px; font-weight: bold; color: #b8860b; text-align: center; }
+        .case-like-btn { 
+            margin-left: 10px; background: #fff; border: 1px solid #ddd; border-radius: 20px; 
+            padding: 5px 12px; font-size: 13px; cursor: pointer; font-weight: bold;
+            display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;
+        }
+        .case-like-btn.liked { border-color: #ff4d4d; color: #ff4d4d; background: #fff1f1; }
+
+        .title-under-line {
+            width: 100%; height: 3px; background-color: #eee; margin-bottom: 20px; border-radius: 2px;
+        }
+
+        .case-content { font-size: 15px; line-height: 1.7; color: #444; white-space: pre-wrap; margin-bottom: 20px; }
+
+        .vote-section { display: flex; gap: 10px; margin-bottom: 30px; flex-direction: row; flex-wrap: wrap; }
+        .vote-btn { flex: 1; padding: 20px; border-radius: 15px; border: none; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
+        .btn-my { background: #ff4d4d; color: white; }
+        .btn-your { background: #4d94ff; color: white; }
+        
+        .result-container { width: 100%; background: #f8f9fa; padding: 20px; border-radius: 15px; border: 1px solid #eee; box-sizing: border-box; }
+        .result-label { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; font-size: 14px; }
+        .gauge-bar { width: 100%; height: 12px; background: #eee; border-radius: 6px; display: flex; overflow: hidden; }
+        .gauge-my { background: #ff4d4d; transition: width 0.5s ease; }
+        .gauge-your { background: #4d94ff; transition: width 0.5s ease; }
+        
+        .user-choice-badge { 
+            display: block; text-align: center; margin-bottom: 15px; 
+            font-size: 14px; font-weight: 800; color: #333;
+            background: #fff; padding: 8px; border-radius: 10px;
+            border: 1px dashed #ccc;
+        }
+
+        /* [수정] 공유 버튼: 중앙 배치 보완 및 여백 조정 */
+        .share-button-container { 
+            margin-top: 25px; 
+            width: 100%; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+        }
+        .btn-share-result { 
+            width: 100%; /* 부모 컨테이너의 가로를 채우되 padding으로 조절 */
+            max-width: 320px; /* 너무 퍼지지 않게 최대 폭 설정 */
+            padding: 15px; border-radius: 12px; border: none; 
+            background: #b8860b; color: white; font-weight: bold; font-size: 15px;
+            cursor: pointer; box-shadow: 0 4px 10px rgba(184, 134, 11, 0.2);
+            transition: transform 0.1s;
+            white-space: nowrap; /* 텍스트 한 줄 유지 */
+            display: flex; justify-content: center; align-items: center; gap: 8px;
+        }
+        .btn-share-result:active { transform: scale(0.98); }
+
+        .comment-section { border-top: 1px solid #eeeeee; padding-top: 20px; }
+        .comment-input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+        .comment-input { width: 100%; background: #f9f9f9; border: 1px solid #dddddd; border-radius: 10px; padding: 12px; color: #333; box-sizing: border-box; font-family: inherit; }
+        .comment-footer { display: flex; justify-content: space-between; align-items: center; }
+        .char-count { font-size: 12px; color: #999; }
+        .comment-submit { background: #ffd700; color: #000; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        
+        .comment-item { background: #f1f1f1; padding: 15px; border-radius: 10px; margin-bottom: 10px; font-size: 14px; color: #333; position: relative; }
+        .comment-best-badge { background: #ffd700; color: #000; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-bottom: 5px; display: inline-block; }
+        .like-btn { background: #fff; border: 1px solid #ddd; border-radius: 15px; padding: 4px 10px; font-size: 12px; cursor: pointer; float: right; transition: 0.2s; }
+        .like-btn.liked { border-color: #ff4d4d; background: #fff1f1; color: #ff4d4d; }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        <div class="header">
+            <div class="header-left">
+                <a href="javascript:void(0)" onclick="location.href='list.html'" class="back-btn">&lt;</a>
+            </div>
+            <div id="displayUserId" class="user-id">아이디 로딩 중...</div>
+            <div class="header-right">
+                <div class="coin-status">🟡 <span id="topCoin">0</span></div>
+            </div>
+        </div>
+
+        <div id="casedetail" class="case-card">
+            <div class="title-wrapper">
+                <div class="case-title" id="displayTitle">로딩 중...</div>
+                <button id="caseLikeBtn" class="case-like-btn" onclick="toggleCaseLike()">
+                    ❤️ <span id="caseLikeCount">0</span>
+                </button>
+            </div>
+            
+            <div class="title-under-line"></div>
+
+            <div class="case-content" id="displayContent">내용을 불러오고 있습니다.</div>
+        </div>
+
+        <div class="vote-section" id="voteSection">
+            <button class="vote-btn btn-my" onclick="handleVote('my')">내 탓</button>
+            <button class="vote-btn btn-your" onclick="handleVote('your')">네 탓</button>
+        </div>
+
+        <div class="comment-section">
+            <h4 style="margin-bottom:15px; color:#222;">💬 댓글 (최대 3개 보상)</h4>
+            <div class="comment-input-group">
+                <textarea id="commentInput" class="comment-input" placeholder="댓글을 입력하세요 (최대 100자)" maxlength="100" rows="3" oninput="updateCharCount()"></textarea>
+                <div class="comment-footer">
+                    <span class="char-count" id="charCount">0 / 100</span>
+                    <button class="comment-submit" onclick="handleComment()">등록</button>
+                </div>
+            </div>
+            <div id="commentList"></div>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const caseId = urlParams.get('id');
+        let currentCase = null;
+
+        function loadData() {
+            const cases = JSON.parse(localStorage.getItem('myCases') || '[]');
+            currentCase = cases.find(c => c.id == caseId);
+            
+            if (!currentCase) {
+                alert("존재하지 않는 사건입니다.");
+                location.replace('list.html');
+                return;
+            }
+
+            document.getElementById('displayUserId').innerText = currentCase.authorName || "익명";
+            document.getElementById('displayTitle').innerText = currentCase.title;
+            document.getElementById('displayContent').innerText = currentCase.content;
+            
+            const likeBtn = document.getElementById('caseLikeBtn');
+            const viewedLikes = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+            if (viewedLikes.includes(caseId)) likeBtn.classList.add('liked');
+            document.getElementById('caseLikeCount').innerText = currentCase.likes || 0;
+
+            updateCoinUI();
+            
+            const now = Date.now();
+            const isExpired = currentCase.endTime - now <= 0;
+
+            if (isExpired && currentCase.voted && !currentCase.rewardCheckDone) {
+                processFinalRewards();
+            }
+
+            if (currentCase.voted || isExpired) {
+                renderResult(isExpired);
+            }
+            renderComments();
+        }
+
+        function toggleCaseLike() {
+            const cases = JSON.parse(localStorage.getItem('myCases') || '[]');
+            const idx = cases.findIndex(c => c.id == caseId);
+            let likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
+
+            if (likedPosts.includes(caseId)) {
+                alert("이미 이 게시글에 좋아요를 누르셨습니다.");
+                return;
+            }
+
+            if (idx !== -1) {
+                cases[idx].likes = (cases[idx].likes || 0) + 1;
+                likedPosts.push(caseId);
+                localStorage.setItem('myCases', JSON.stringify(cases));
+                localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+                currentCase = cases[idx];
+                document.getElementById('caseLikeCount').innerText = currentCase.likes;
+                document.getElementById('caseLikeBtn').classList.add('liked');
+            }
+        }
+
+        function processFinalRewards() {
+            const cases = JSON.parse(localStorage.getItem('myCases') || '[]');
+            const idx = cases.findIndex(c => c.id == caseId);
+            let userPoints = parseInt(localStorage.getItem('userPoints') || '0');
+            let messages = [];
+
+            const myVotes = currentCase.voteCount.my || 0;
+            const yourVotes = currentCase.voteCount.your || 0;
+            let winner = myVotes > yourVotes ? 'my' : (yourVotes > myVotes ? 'your' : 'draw');
+
+            if (currentCase.userChoice === winner || (winner === 'draw' && currentCase.voted)) {
+                userPoints += 100;
+                messages.push("⚖️ 판결 성공 보상 (+100 LP)");
+            }
+
+            if (currentCase.comments && currentCase.comments.length > 0) {
+                const sortedComments = [...currentCase.comments].sort((a, b) => {
+                    if (b.likes !== a.likes) return b.likes - a.likes;
+                    return a.time - b.time;
+                });
+                const top3Ids = sortedComments.slice(0, 3).map(c => c.commentId);
+                const myBestComment = currentCase.comments.find(c => c.isMine && top3Ids.includes(c.commentId));
+                if (myBestComment) {
+                    userPoints += 200;
+                    messages.push("⭐ 베스트 댓글 선정 보상 (+200 LP)");
+                    currentCase.comments.forEach(c => { if (top3Ids.includes(c.commentId)) c.isBest = true; });
+                }
+            }
+
+            if (messages.length > 0) alert(messages.join('\n'));
+            cases[idx].rewardCheckDone = true;
+            localStorage.setItem('userPoints', userPoints.toString());
+            localStorage.setItem('myCases', JSON.stringify(cases));
+            updateCoinUI();
+        }
+
+        function renderResult(isExpired) {
+            const myVotes = currentCase.voteCount.my || 0;
+            const yourVotes = currentCase.voteCount.your || 0;
+            const total = myVotes + yourVotes;
+            const myPercent = total === 0 ? 0 : Math.round((myVotes / total) * 100);
+            const yourPercent = total === 0 ? 0 : Math.round((yourVotes / total) * 100);
+
+            let choiceText = "투표하지 않음";
+            if (currentCase.userChoice === 'my') choiceText = "내 탓이다";
+            else if (currentCase.userChoice === 'your') choiceText = "네 탓이다";
+
+            let resultHtml = `
+                <div class="result-container">
+                    <h4 style="text-align: center; margin: 0 0 10px 0; color: #222;">⚖️ 판결 결과</h4>
+                    ${currentCase.voted ? `<span class="user-choice-badge">🗳️ 나의 선택: [${choiceText}]</span>` : ''}
+                    <div class="result-label">
+                        <span style="color: #ff4d4d;">내 탓: ${myVotes}표 (${myPercent}%)</span>
+                        <span style="color: #4d94ff;">네 탓: ${yourVotes}표 (${yourPercent}%)</span>
+                    </div>
+                    <div class="gauge-bar">
+                        <div class="gauge-my" style="width: ${myPercent}%"></div>
+                        <div class="gauge-your" style="width: ${yourPercent}%"></div>
+                    </div>
+                    <p style="text-align: center; font-size: 12px; color: #888; margin-top: 15px; margin-bottom: 0;">
+                        ${isExpired ? "판결이 마감된 사건입니다." : "투표에 참여하신 사건입니다."}
+                    </p>
+                </div>
+            `;
+
+            if (isExpired) {
+                resultHtml += `
+                    <div class="share-button-container">
+                        <button class="btn-share-result" onclick="location.href='result.html?id=${currentCase.id}'">
+                            📤 판결 결과 공유
+                        </button>
+                    </div>
+                `;
+            }
+            document.getElementById('voteSection').innerHTML = resultHtml;
+        }
+
+        function handleVote(side) {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            if (currentCase.authorName === currentUser.nickname) {
+                alert("본인이 접수한 사건에는 투표할 수 없습니다! ⚖️");
+                return;
+            }
+            const cases = JSON.parse(localStorage.getItem('myCases') || '[]');
+            const idx = cases.findIndex(c => c.id == caseId);
+            if (idx !== -1) {
+                cases[idx].voted = true;
+                cases[idx].userChoice = side;
+                cases[idx].voteCount[side]++;
+                localStorage.setItem('myCases', JSON.stringify(cases));
+                awardReward('vote');
+                location.reload();
+            }
+        }
+
+        function handleComment() {
+            const input = document.getElementById('commentInput');
+            const content = input.value.trim();
+            if (!content) return;
+            const cases = JSON.parse(localStorage.getItem('myCases') || '[]');
+            const idx = cases.findIndex(c => c.id == caseId);
+            if (idx !== -1) {
+                if (!cases[idx].comments) cases[idx].comments = [];
+                if (!cases[idx].commentRewardCount) cases[idx].commentRewardCount = 0;
+                const newComment = { commentId: Date.now(), text: content, likes: 0, likedUsers: [], time: Date.now(), isMine: true, isBest: false };
+                if (cases[idx].commentRewardCount < 3) { cases[idx].commentRewardCount++; awardReward('comment'); }
+                else { alert("이 사건의 댓글 보상(최대 3회)을 모두 받으셨습니다."); }
+                cases[idx].comments.push(newComment);
+                localStorage.setItem('myCases', JSON.stringify(cases));
+                input.value = '';
+                updateCharCount();
+                currentCase = cases[idx];
+                renderComments();
+            }
+        }
+
+        function toggleLike(commentId) {
+            const cases = JSON.parse(localStorage.getItem('myCases') || '[]');
+            const idx = cases.findIndex(c => c.id == caseId);
+            const comment = cases[idx].comments.find(c => c.commentId === commentId);
+            if (comment) {
+                if (!comment.likedUsers) comment.likedUsers = [];
+                if (comment.likedUsers.includes('me')) { alert("이미 좋아요를 누르셨습니다."); return; }
+                comment.likes = (comment.likes || 0) + 1;
+                comment.likedUsers.push('me'); 
+                localStorage.setItem('myCases', JSON.stringify(cases));
+                currentCase = cases[idx];
+                renderComments();
+            }
+        }
+
+        function renderComments() {
+            const list = document.getElementById('commentList');
+            list.innerHTML = '';
+            const comments = currentCase.comments || [];
+            [...comments].reverse().forEach(c => {
+                const bestBadge = c.isBest ? `<span class="comment-best-badge">⭐ BEST</span><br>` : '';
+                const isLiked = c.likedUsers && c.likedUsers.includes('me');
+                const likedClass = isLiked ? 'liked' : '';
+                list.insertAdjacentHTML('beforeend', `
+                    <div class="comment-item">
+                        ${bestBadge}
+                        <button class="like-btn ${likedClass}" onclick="toggleLike(${c.commentId})">
+                            👍 ${c.likes}
+                        </button>
+                        ${c.text}
+                    </div>
+                `);
+            });
+        }
+
+        // [수정] 코인 지급 로직: +30개 및 무제한 획득 적용
+        function awardReward(type) {
+            let userData = JSON.parse(localStorage.getItem('userData')) || { coin: 0 };
+            let userPoints = parseInt(localStorage.getItem('userPoints') || '0');
+            
+            let coinPlus = 30; // 보상을 +30으로 변경
+            let lpPlus = (type === 'vote') ? 10 : 20;
+            
+            // 일일 획득 제한 로직 삭제
+            userData.coin += coinPlus;
+            userPoints += lpPlus;
+            
+            localStorage.setItem('userData', JSON.stringify(userData));
+            localStorage.setItem('userPoints', userPoints.toString());
+            updateCoinUI();
+            
+            if (coinPlus > 0) alert(`🎁 보상 획득! (금색 코인 +${coinPlus}, LP +${lpPlus})`);
+        }
+
+        function updateCoinUI() {
+            const user = JSON.parse(localStorage.getItem('userData')) || { coin: 0 };
+            document.getElementById('topCoin').innerText = (user.coin || 0).toLocaleString();
+        }
+
+        function updateCharCount() {
+            const input = document.getElementById('commentInput');
+            document.getElementById('charCount').innerText = `${input.value.length} / 100`;
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>

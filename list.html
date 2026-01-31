@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사건 목록 - 내탓네탓</title>
+    <style>
+        body { 
+            margin: 0; 
+            background-color: #ffffff; 
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; 
+            color: #333333; 
+        }
+        .mobile-container {
+            width: 100%; max-width: 430px; min-height: 100vh; margin: 0 auto;
+            display: flex; flex-direction: column; padding: 50px 15px; box-sizing: border-box;
+            background-color: #ffffff;
+        }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        
+        .back-btn { font-size: 24px; color: #333; text-decoration: none; font-weight: bold; width: 30px; cursor: pointer; border: none; background: none; text-align: left; padding: 0; }
+        .back-btn::before { content: '‹'; }
+        
+        .archive-title { 
+            font-size: 18px; 
+            font-weight: 600; 
+            color: #444; 
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .title-divider {
+            width: 100%;
+            height: 1px;
+            background-color: #eee;
+            margin-top: 75px; 
+            margin-bottom: 20px; 
+        }
+
+        .refresh-btn {
+            background: none; border: none; font-size: 18px; cursor: pointer;
+            width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+            padding: 0; transition: transform 0.4s ease;
+        }
+        .refresh-btn.rotating { transform: rotate(360deg); }
+
+        .case-card {
+            background: #ffffff; 
+            border-radius: 12px; 
+            padding: 10px 15px; 
+            margin-bottom: 10px; 
+            border: 1px solid #f0f0f0; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04); 
+            cursor: pointer; 
+            position: relative;
+            display: flex;
+            align-items: center; 
+        }
+
+        .author-area {
+            width: 65px; 
+            flex-shrink: 0;
+            font-size: 13px;
+            font-weight: bold;
+            color: #555;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .divider {
+            width: 1px;
+            height: 25px; 
+            background-color: #eee;
+            margin: 0 12px;
+            flex-shrink: 0;
+        }
+
+        .content-area {
+            flex-grow: 1;
+            min-width: 0; 
+        }
+        
+        .case-title { font-size: 14.5px; font-weight: bold; color: #222222; padding-right: 60px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .time-tag {
+            position: absolute; top: 50%; transform: translateY(-50%); right: 12px;
+            font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px;
+            color: #ffffff !important;
+        }
+        .status-ing { background: #ff4d4d; }
+        .status-end { background: #aaaaaa; }
+
+        .case-footer { 
+            display: flex; 
+            gap: 15px; /* [수정] 요소 간 간격을 15px로 여유 있게 조정 */
+            font-size: 10px; 
+            color: #888; 
+            font-weight: 600; 
+            margin-top: 4px;
+            align-items: center;
+        }
+        .view-count { display: flex; align-items: center; gap: 3px; }
+        .vote-status { color: #555; }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        <div class="header">
+            <button onclick="location.href='main.html'" class="back-btn"></button>
+            <div class="archive-title">📜 사건 아카이브</div>
+            <button onclick="handleRefresh(this)" class="refresh-btn">🔄</button>
+        </div>
+
+        <div class="title-divider"></div>
+
+        <div id="caseList"></div>
+    </div>
+
+    <script>
+        if (!localStorage.getItem('currentUser')) {
+            location.replace('main.html');
+        }
+
+        function handleRefresh(btn) {
+            btn.classList.add('rotating');
+            renderList();
+            setTimeout(() => {
+                btn.classList.remove('rotating');
+            }, 400);
+        }
+
+        // [수정] 중복 조회수 방지 로직이 추가된 상세 이동 함수
+        function goToDetail(id) {
+            const savedCases = JSON.parse(localStorage.getItem('myCases') || '[]');
+            // 읽은 글 목록 가져오기 (없으면 빈 배열)
+            let viewedList = JSON.parse(localStorage.getItem('viewedCases') || '[]');
+
+            // 아직 읽지 않은 글인 경우에만 조회수 증가
+            if (!viewedList.includes(id)) {
+                const updatedCases = savedCases.map(c => {
+                    if (c.id === id) {
+                        c.views = (c.views || 0) + 1;
+                    }
+                    return c;
+                });
+                localStorage.setItem('myCases', JSON.stringify(updatedCases));
+                
+                // 읽은 목록에 추가
+                viewedList.push(id);
+                localStorage.setItem('viewedCases', JSON.stringify(viewedList));
+            }
+            
+            location.href = `detail.html?id=${id}`;
+        }
+
+        function renderList() {
+            const listContainer = document.getElementById('caseList');
+            const savedCases = JSON.parse(localStorage.getItem('myCases') || '[]');
+
+            if (savedCases.length === 0) {
+                listContainer.innerHTML = '<p style="text-align:center; margin-top:100px; color:#aaa; font-size:14px;">기록된 사건이 없습니다.</p>';
+                return;
+            }
+
+            listContainer.innerHTML = '';
+            const now = Date.now();
+            const displayCases = [...savedCases].sort((a, b) => b.id - a.id);
+
+            displayCases.forEach(item => {
+                const diff = item.endTime - now;
+                let timeText = "";
+                let statusClass = "status-ing";
+
+                if (diff <= 0) {
+                    timeText = "판결 마감";
+                    statusClass = "status-end";
+                } else {
+                    const m = Math.floor(diff / 60000);
+                    if (m < 1) timeText = "곧 마감";
+                    else if (m >= 60) timeText = "1시간+";
+                    else timeText = `${m}분`;
+                }
+
+                const authorName = item.authorName || "익명";
+                const views = item.views || 0;
+                const voteText = item.voted ? "투표 완료" : "투표 전";
+
+                const html = `
+                    <div class="case-card" onclick="goToDetail(${item.id})">
+                        <div class="author-area">${authorName}</div>
+                        <div class="divider"></div>
+                        <div class="content-area">
+                            <div class="time-tag ${statusClass}">${timeText}</div>
+                            <div class="case-title">${item.title}</div>
+                            <div class="case-footer">
+                                <span>❤️ ${item.likes || 0}</span>
+                                <span class="view-count">👁️ ${views.toLocaleString()}</span>
+                                <span class="vote-status">⚖️ ${voteText}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                listContainer.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        setInterval(renderList, 60000);
+        renderList();
+    </script>
+</body>
+</html>
