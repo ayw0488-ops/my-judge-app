@@ -58,9 +58,7 @@
         .img-upload-box { background: #000; border: 1px dashed #444; border-radius: 10px; padding: 10px; text-align: center; margin-bottom: 15px; cursor: pointer; }
         .img-preview { width: 100%; border-radius: 8px; margin-bottom: 10px; display: none; }
 
-        /* [수정 1] 영구 삭제 버튼 영역 초기 숨김 처리 (깜빡임 방지) */
         #adminDelWrap { display: none; }
-        /* [수정 2] 관리자 전용 저장 버튼 이중 제어 클래스 */
         .admin-save-btn { display: none; }
     </style>
 </head>
@@ -102,12 +100,14 @@
     const storage = getStorage(app);
     const urlParams = new URLSearchParams(window.location.search);
     const logId = urlParams.get('id');
+
+    // [중요 수정] 본인 확인 변수를 상단으로 끌어올림
+    const myRole = localStorage.getItem('my_app_role');
+    const isMaster = myRole === 'master';
+
     window.closeModal = function() { document.getElementById('infoModal').style.display = 'none'; }
     window.changeLeverage = async function() {
-        // [수정] 관리자 권한 체크
-        const role = localStorage.getItem('my_app_role');
-        if (role !== 'master') return;
-
+        if (!isMaster) return;
         const newLev = prompt("변경할 새로운 배율(Leverage)을 입력하세요:");
         if (!newLev) return;
         const newEntry = prompt("바이비트에서 확인한 새로운 평단가(Entry Price)를 입력하세요:");
@@ -175,13 +175,9 @@
         const p = parseFloat(target.price) || 0;
         const existingImg = target.img ? `<img src="${target.img}" class="modal-img">` : `<img id="previewImg" class="img-preview">`;
         
-        // [수정] 관리자 권한 확인
-        const role = localStorage.getItem('my_app_role');
-        const isAdmin = role === 'master';
-
         body.innerHTML = `
             <div style="margin-bottom:10px; font-weight:bold; color:#00c087;">가격: ${p.toLocaleString()}</div>
-            ${isAdmin ? `
+            ${isMaster ? `
             <div class="img-upload-box" onclick="document.getElementById('fileInput').click()">
                 ${existingImg}
                 <span style="font-size:12px; color:#888;">🖼️ 이미지 첨부 (클릭)</span>
@@ -239,14 +235,10 @@
         const snap = await getDoc(doc(db, "tradeLogs", logId));
         const data = snap.data();
         
-        // [수정] 관리자 권한 확인
-        const role = localStorage.getItem('my_app_role');
-        const isAdmin = role === 'master';
-
         if (data.status !== "종료") {
             body.innerHTML = "<div style='text-align:center; padding:20px;'>매매가 종료된 후에 작성 가능합니다.</div>";
         } else {
-            if (isAdmin) {
+            if (isMaster) {
                 const existingImg = data.finishImg ? `<img src="${data.finishImg}" class="modal-img">` : `<img id="previewImgFinish" class="img-preview">`;
                 body.innerHTML = `
                     <div style="margin-bottom:10px; font-weight:bold; color:#f3ba2f;">종료 시간: ${data.endDate}</div>
@@ -285,7 +277,7 @@
         saveBtn.disabled = true; saveBtn.innerText = "업로드 및 저장 중...";
         let finishImgUrl = "";
         if (fileInput && fileInput.files[0]) {
-            const file = fileInput.files[0];
+            const file = fileInputFinish.files[0];
             const storageRef = ref(storage, `tradeLogs/${logId}/finish_${Date.now()}`);
             await uploadBytes(storageRef, file);
             finishImgUrl = await getDownloadURL(storageRef);
@@ -326,16 +318,21 @@
         const detailView = document.getElementById('detailView');
         const adminDelWrap = document.getElementById('adminDelWrap');
         
-        // [수정] 권한 확인
-        const role = localStorage.getItem('my_app_role');
-        const isAdmin = role === 'master';
-        if (isAdmin && adminDelWrap) adminDelWrap.style.display = 'block';
+        if (isMaster && adminDelWrap) adminDelWrap.style.display = 'block';
 
         try {
             const docRef = doc(db, "tradeLogs", logId);
             const docSnap = await getDoc(docRef);
             if (!docSnap.exists()) { detailView.innerHTML = '<div style="text-align:center; padding:50px;">데이터 없음</div>'; return; }
             const log = docSnap.data();
+
+            // [핵심 수정] 진행 중인 포지션이더라도 마스터(본인)라면 바로 보여주고, 일반인만 차단함
+            if (log.status === "진행 중" && !isMaster) {
+                alert("진행 중인 포지션은 마감 후 상세 내용을 볼 수 있습니다.");
+                location.href = 'bctlist.html';
+                return;
+            }
+
             const isLong = log.direction.includes("롱");
             const dirColor = isLong ? "#00c087" : "#ff4d4d";
             let settleHtml = "", actionHtml = "", durationHtml = "";
@@ -346,7 +343,7 @@
                 if (duration) durationHtml = `<span class="duration-badge">⏱️ ${duration}</span>`;
             }
             if (log.status === "진행 중") {
-                if (isAdmin) {
+                if (isMaster) {
                     actionHtml = `<div class="action-section"><span class="action-title">✂️ 부분 익절 (반익)</span><div class="action-group"><input type="number" id="tpPrice" class="action-input" placeholder="반익 가격"><button class="btn-action btn-tp" onclick="window.partialTP()">반익 실행</button></div></div><div class="action-section"><span class="action-title">➕ 추가 매수 (추매)</span><div class="action-group"><input type="number" id="addPrice" class="action-input" placeholder="추매 가격"><button class="btn-action btn-add" onclick="window.addPosition()">추매 실행</button></div></div>`;
                     settleHtml = `<div class="settle-section"><span style="font-size:14px; font-weight:bold; color:#f3ba2f; display:block; margin-bottom:12px;">🏁 매매 종료하기</span><div style="display:flex; gap:10px;"><input type="number" id="sellPrice" style="flex:1; background:#121212; border:1px solid #444; padding:10px; border-radius:8px; color:#fff;" placeholder="종료 가격"><button class="btn-settle" onclick="window.finishTrade()">정산</button></div></div>`;
                 }
@@ -372,9 +369,8 @@
             const levVal = parseFloat(log.leverage) || 0;
             const pProfit = parseFloat(log.partialProfit) || 0;
             
-            // [수정] 배율 클릭 클래스 및 핸들러 조건부 적용
-            const levClass = isAdmin ? "lev-clickable" : "";
-            const levOnclick = isAdmin ? `onclick="window.changeLeverage()"` : "";
+            const levClass = isMaster ? "lev-clickable" : "";
+            const levOnclick = isMaster ? `onclick="window.changeLeverage()"` : "";
 
             detailView.innerHTML = `
                 <div class="info-header">

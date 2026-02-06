@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>매매일지 아카이브</title>
     <style>
-        /* [스타일 가이드] 메인 및 리스트 디자인 유지 */
         body { margin: 0; background-color: #121212; color: #e0e0e0; font-family: 'Pretendard', sans-serif; padding: 20px; display: flex; justify-content: center; }
         .list-container { width: 100%; max-width: 450px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
@@ -17,8 +16,6 @@
         #logList { display: flex; flex-direction: column; gap: 12px; }
         .log-card { background: #1e1e1e; border-radius: 15px; padding: 18px 20px; border-left: 6px solid #444; cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: inherit; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .floating-btn { position: fixed; bottom: 30px; right: 20px; width: 60px; height: 60px; background: #f3ba2f; color: #000; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 30px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(243, 186, 47, 0.4); z-index: 1000; }
-
-        /* [이식] calculator.html의 모달 스타일 그대로 복사 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
         .modal-content { background: #1e1e1e; width: 100%; max-width: 400px; padding: 25px; border-radius: 20px; max-height: 90vh; overflow-y: auto; border: 1px solid #333; text-align: left; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -29,11 +26,7 @@
         .modal-content input, .modal-content textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #333; background: #2b2b2b; color: #fff; font-size: 16px; box-sizing: border-box; font-family: inherit; }
         .modal-content textarea { resize: vertical; min-height: 80px; }
         .btn-save { width: 100%; padding: 15px; border-radius: 10px; border: none; background: #f3ba2f; color: #000; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        
-        /* 시간 표시 스타일 추가 */
         .log-duration { font-size: 11px; color: #f3ba2f; font-weight: 500; margin-left: 8px; }
-
-        /* [추가] 관리자 버튼 초기 숨김 (깜빡임 방지) */
         .floating-btn, .btn-save { display: none; }
     </style>
 </head>
@@ -75,8 +68,6 @@
 <script>
     window.addEventListener('load', () => {
         const role = localStorage.getItem('my_app_role');
-        
-        // [수정] 주인님('master')일 때만 버튼들을 노출시키는 로직으로 변경 (보안 강화)
         if (role === 'master') {
             const adminItems = document.querySelectorAll('#adminFloatBtn, #adminSaveBtn');
             adminItems.forEach(el => {
@@ -229,6 +220,8 @@
             if (filter === 'profit') filteredLogs = allLogs.filter(log => log.status === "종료" && parseFloat(log.actualProfit) > 0);
             else if (filter === 'loss') filteredLogs = allLogs.filter(log => log.status === "종료" && parseFloat(log.actualProfit) < 0);
 
+            const myRole = localStorage.getItem('my_app_role');
+
             logList.innerHTML = filteredLogs.map((log) => {
                 const isLong = log.direction && log.direction.includes("롱");
                 const borderColor = isLong ? "#00c087" : "#ff4d4d";
@@ -238,7 +231,7 @@
                     durationSpan = `<span class="log-duration">${getDuration(log.timestamp || log.date, log.endDate)}</span>`;
                 }
 
-                const clickHandler = log.status === '진행 중' 
+                const clickHandler = (log.status === '진행 중' && myRole !== 'master') 
                     ? `onclick="alert('진행 중인 포지션은 마감 후 상세 내용을 볼 수 있습니다.'); return false;"` 
                     : `href="bctdetail.html?id=${log.id}"`;
 
