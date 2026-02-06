@@ -176,7 +176,6 @@
 
     window.closeJournal = function() { 
         document.getElementById('journalModal').style.display = 'none'; 
-        // [수정] 어디서 왔는지 확인하여 이전 페이지로 복귀하거나 메인으로 이동
         if (document.referrer.includes('bctlist.html')) {
             location.href = 'bctlist.html';
         } else {
@@ -205,11 +204,15 @@
                 imageUrl = await getDownloadURL(storageRef);
             }
 
+            // [핵심 데이터 구조 추가]
+            const entryVal = document.getElementById('journalEntry').value;
+            const levVal = document.getElementById('journalLev').value;
+
             const journalData = {
                 coinName: document.getElementById('journalCoin').value || "Unknown",
-                entry: document.getElementById('journalEntry').value,
+                entry: entryVal,
                 stop: document.getElementById('journalStop').value,
-                leverage: document.getElementById('journalLev').value,
+                leverage: levVal,
                 direction: document.getElementById('j-dir').innerText,
                 expectedLoss: document.getElementById('j-loss').innerText,
                 reason: document.getElementById('journalReason').value,
@@ -219,7 +222,14 @@
                 endDate: null,
                 timestamp: Date.now(),
                 partialProfit: 0,
-                tradeHistory: [] 
+                // 최초 진입 기록을 history 배열의 첫 번째 값으로 자동 저장
+                tradeHistory: [{
+                    type: "최초 진입",
+                    timestamp: Date.now(),
+                    date: new Date().toLocaleString(),
+                    leverage: levVal,
+                    avgPrice: entryVal
+                }] 
             };
             
             await addDoc(collection(db, "tradeLogs"), journalData);

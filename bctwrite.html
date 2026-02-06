@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Archive</title>
+    <style>
+        body { margin: 0; background-color: #121212; color: #e0e0e0; font-family: 'Pretendard', sans-serif; padding: 20px; display: flex; justify-content: center; }
+        .list-container { width: 100%; max-width: 450px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .header h2 { color: #f3ba2f; margin: 0; font-size: 22px; cursor: pointer; } 
+        .header h2 a { color: inherit; text-decoration: none; } 
+        .filter-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1e1e1e; color: #888; cursor: pointer; font-size: 13px; font-weight: bold; transition: 0.2s; }
+        .tab-btn.active { border-color: #f3ba2f; color: #f3ba2f; background: rgba(243, 186, 47, 0.1); }
+        #logList { display: flex; flex-direction: column; gap: 12px; }
+        .log-card { background: #1e1e1e; border-radius: 15px; padding: 18px 20px; border-left: 6px solid #444; cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: inherit; }
+        
+        /* 플러스 버튼 */
+        .floating-btn { position: fixed; bottom: 30px; right: 20px; width: 60px; height: 60px; background: #f3ba2f; color: #000; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 30px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(243, 186, 47, 0.4); z-index: 1000; }
+
+        /* [이식] 이미지와 동일한 팝업 스타일 */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 2000; padding: 20px; box-sizing: border-box; }
+        .modal-content { background: #1e1e1e; width: 100%; max-width: 400px; padding: 25px; border-radius: 25px; border: 1px solid #333; position: relative; }
+        .modal-title { color: #f3ba2f; font-size: 20px; font-weight: 900; margin-bottom: 20px; display: block; }
+        .close-x { position: absolute; top: 20px; right: 20px; color: #888; font-size: 24px; cursor: pointer; }
+        
+        .input-item { margin-bottom: 15px; text-align: left; }
+        .input-item label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; }
+        .m-input { width: 100%; background: #222; border: 1px solid #333; padding: 12px; border-radius: 12px; color: #fff; font-size: 14px; box-sizing: border-box; }
+        .m-textarea { width: 100%; background: #222; border: 1px solid #333; padding: 12px; border-radius: 12px; color: #fff; font-size: 14px; box-sizing: border-box; height: 100px; resize: none; }
+        
+        .pos-info { background: #222; padding: 12px; border-radius: 12px; display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 15px; border: 1px dashed #444; }
+        .btn-submit { width: 100%; background: #f3ba2f; color: #000; border: none; padding: 15px; border-radius: 15px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="list-container">
+    <div class="header">
+        <h2><a href="index.html">Trade Archive</a></h2>
+    </div>
+    <div class="filter-tabs">
+        <button class="tab-btn active" onclick="window.loadLogs('all', this)">전체</button>
+        <button class="tab-btn" onclick="window.loadLogs('profit', this)">수익</button>
+        <button class="tab-btn" onclick="window.loadLogs('loss', this)">손실</button>
+    </div>
+    <div id="logList"><div class="loading-msg">불러오는 중...</div></div>
+</div>
+
+<div class="floating-btn" onclick="window.openModal()">+</div>
+
+<div id="writeModal" class="modal-overlay" onclick="window.closeModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="close-x" onclick="window.closeModal()">&times;</span>
+        <span class="modal-title">New Trade Journal</span>
+        
+        <div class="pos-info">
+            <span>포지션: <select id="p_dir" style="background:none; border:none; color:#fff; font-weight:bold;"><option value="롱 🟢">롱 🟢</option><option value="숏 🔴">숏 🔴</option></select></span>
+            <span>손절 시 손실률: <b style="color:#ff4d4d;">0%</b></span>
+        </div>
+
+        <div class="input-item"><label>코인 종목</label><input type="text" id="p_coin" class="m-input" placeholder="예: BTC, ETH"></div>
+        <div class="input-item"><label>진입가</label><input type="number" id="p_entry" class="m-input"></div>
+        <div class="input-item"><label>손절가</label><input type="number" id="p_stop" class="m-input"></div>
+        <div class="input-item"><label>배율 (Leverage)</label><input type="number" id="p_lev" class="m-input" value="20"></div>
+        <div class="input-item"><label>차트 이미지</label><input type="file" id="p_img" class="m-input" style="font-size:11px;"></div>
+        <div class="input-item"><label>진입 근거</label><textarea id="p_reason" class="m-textarea"></textarea></div>
+        
+        <button class="btn-submit" onclick="window.saveLog()">일지 저장</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAqbLB-bnniXhNj0XqtD0DlkWhk_2_0PkU",
+        authDomain: "sxsx-75c73.firebaseapp.com",
+        projectId: "sxsx-75c73",
+        storageBucket: "sxsx-75c73.firebasestorage.app",
+        messagingSenderId: "401139729279",
+        appId: "1:401139729279:web:2a41b315873137bfeb104a",
+        measurementId: "G-1200YV6S6K"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.openModal = () => document.getElementById('writeModal').style.display = 'flex';
+    window.closeModal = () => document.getElementById('writeModal').style.display = 'none';
+
+    window.saveLog = async function() {
+        const coin = document.getElementById('p_coin').value;
+        const entry = document.getElementById('p_entry').value;
+        const stop = document.getElementById('p_stop').value;
+        if(!coin || !entry || !stop) { alert("항목을 채워주세요."); return; }
+
+        try {
+            await addDoc(collection(db, "tradeLogs"), {
+                coinName: coin, direction: document.getElementById('p_dir').value,
+                entry: entry, stop: stop, leverage: document.getElementById('p_lev').value,
+                reason: document.getElementById('p_reason').value,
+                status: "진행 중", date: new Date().toLocaleString(), timestamp: Date.now()
+            });
+            alert("저장되었습니다.");
+            window.closeModal();
+            window.loadLogs('refresh');
+        } catch (e) { alert("오류 발생"); }
+    };
+
+    // 기존 리스트 로드 함수 (수정 없음)
+    let allLogs = [];
+    window.loadLogs = async function(filter = 'all', btnElement = null) {
+        const logList = document.getElementById('logList');
+        if (btnElement) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+        }
+        try {
+            if (allLogs.length === 0 || filter === 'refresh') {
+                const q = query(collection(db, "tradeLogs"), orderBy("timestamp", "desc"));
+                const querySnapshot = await getDocs(q);
+                allLogs = [];
+                querySnapshot.forEach((doc) => { allLogs.push({ id: doc.id, ...doc.data() }); });
+            }
+            let filteredLogs = [...allLogs];
+            if (filter === 'profit') filteredLogs = allLogs.filter(log => log.status === "종료" && parseFloat(log.actualProfit) > 0);
+            else if (filter === 'loss') filteredLogs = allLogs.filter(log => log.status === "종료" && parseFloat(log.actualProfit) < 0);
+
+            logList.innerHTML = filteredLogs.map((log) => {
+                const isLong = log.direction && log.direction.includes("롱");
+                const borderColor = isLong ? "#00c087" : "#ff4d4d";
+                return `
+                    <a href="bctdetail.html?id=${log.id}" class="log-card" style="border-left-color: ${borderColor}">
+                        <div style="text-align:left;">
+                            <div style="color:${borderColor}; font-weight:bold;">${log.direction} ${log.leverage}x <span style="background:#333; color:#fff; padding:2px 5px; border-radius:5px; font-size:12px;">${log.coinName}</span></div>
+                            <div style="color:#888; font-size:11px; margin-top:5px;">${log.date}</div>
+                        </div>
+                        <div style="font-weight:bold; color:${log.status === '진행 중' ? '#aaa' : (parseFloat(log.actualProfit) >= 0 ? '#24a0ed' : '#ff4d4d')}">
+                            ${log.status === '진행 중' ? '진행 중' : (parseFloat(log.actualProfit) > 0 ? '+' : '') + log.actualProfit + '%'}
+                        </div>
+                    </a>`;
+            }).join('');
+        } catch (e) { logList.innerHTML = "오류 발생"; }
+    };
+    window.loadLogs('refresh');
+</script>
+</body>
+</html>

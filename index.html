@@ -11,19 +11,19 @@
         
         /* 상단 헤더 */
         .top-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 25px; padding-top: 10px; width: 100%; }
-        .logo-section { text-align: left; flex-shrink: 0; cursor: default; }
+        .logo-section { text-align: left; flex-shrink: 0; cursor: default; position: relative; padding-bottom: 25px; } /* 연필 버튼 공간 확보 */
         .logo-section h1 { color: #f3ba2f; font-size: 18px; font-weight: 900; margin: 0; letter-spacing: -1px; }
         .logo-section p { color: #ffffff; margin-top: 2px; font-size: 10px; opacity: 0.9; margin-bottom: 0; }
 
-        /* [수정] 잔액 박스: 연필 버튼을 내부 오른쪽 끝에 배치하기 위해 relative 유지 */
-        .balance-box { background: #1e1e1e; border: 1px solid #333; padding: 8px 12px; border-radius: 12px; flex-grow: 1; box-shadow: 0 4px 15px rgba(0,0,0,0.2); min-width: 0; position: relative; display: flex; flex-direction: column; justify-content: center; height: 45px; }
-        .balance-label { font-size: 8px; color: #ffffff; margin-bottom: 1px; display: block; opacity: 0.8; text-align: left; }
-        .balance-amount { font-size: 14px; font-weight: 900; color: #f3ba2f; white-space: nowrap; text-align: left; padding-right: 25px; } /* 연필 자리를 위한 패딩 */
-        .balance-diff { font-size: 10px; font-weight: bold; position: absolute; left: 60px; bottom: 8px; } /* 위치 조정 */
+        /* [수정] 잔액 박스: 텍스트들을 정가운데로 정렬 */
+        .balance-box { background: #1e1e1e; border: 1px solid #333; padding: 8px 12px; border-radius: 12px; flex-grow: 1; box-shadow: 0 4px 15px rgba(0,0,0,0.2); min-width: 0; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 45px; text-align: center; }
+        .balance-label { font-size: 8px; color: #ffffff; margin-bottom: 1px; display: block; opacity: 0.8; width: 100%; }
+        .balance-amount { font-size: 14px; font-weight: 900; color: #f3ba2f; white-space: nowrap; width: 100%; } 
+        .balance-diff { font-size: 10px; font-weight: bold; margin-top: 2px; position: static; } /* 위치를 absolute에서 static으로 변경하여 금액 밑 중앙에 오게 함 */
         .start-date-label { font-size: 10px; font-weight: bold; color: #f3ba2f; position: absolute; top: -18px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
 
-        /* [수정] 연필 버튼: 잔액 박스 오른쪽 끝에 고정 */
-        .btn-edit-inline { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #f3ba2f; cursor: pointer; font-size: 16px; padding: 5px; z-index: 2; }
+        /* [수정] 연필 버튼: 로고 섹션 하단(로고 밑)으로 이동 */
+        .btn-edit-inline { position: absolute; left: 0; bottom: 0; background: none; border: none; color: #f3ba2f; cursor: pointer; font-size: 16px; padding: 5px; z-index: 2; }
 
         /* [수정] 기록 버튼: 우측 빈자리를 채우는 네모난 버튼 */
         .header-btns { flex-shrink: 0; }
@@ -31,7 +31,8 @@
         .btn-balance-record:hover { border-color: #f3ba2f; color: #f3ba2f; }
 
         /* 이하 기존 코드 절대 보존 */
-        .mood-section { margin-bottom: 20px; text-align: left; background: #1e1e1e; padding: 15px; border-radius: 15px; border: 1px solid #333; }
+        /* [수정] .mood-section에 text-align: center 추가 */
+        .mood-section { margin-bottom: 20px; text-align: center; background: #1e1e1e; padding: 15px; border-radius: 15px; border: 1px solid #333; }
         .mood-title { font-size: 12px; color: #f3ba2f; font-weight: bold; margin-bottom: 10px; display: block; }
         .mood-input-group { display: flex; gap: 8px; margin-bottom: 10px; }
         .mood-input { flex-grow: 1; background: #121212; border: 1px solid #444; border-radius: 8px; padding: 8px; color: #fff; font-size: 13px; }
@@ -60,7 +61,8 @@
     <div class="top-header">
         <div class="logo-section">
             <h1>TRADE LOG</h1>
-            <p>기록은 배신하지 않습니다.</p>
+            <p></p>
+            <button class="btn-edit-inline" id="adminUpdateBtn" onclick="location.href='balance_manager.html'">✏️</button>
         </div>
         
         <div class="balance-box">
@@ -68,7 +70,6 @@
             <span class="balance-label">TOTAL ASSETS</span>
             <span class="balance-amount" id="currentBalance">0 원</span>
             <span class="balance-diff" id="balanceDiff"></span>
-            <button class="btn-edit-inline" id="adminUpdateBtn" onclick="location.href='balance_manager.html'">✏️</button>
         </div>
 
         <div class="header-btns">
@@ -109,7 +110,20 @@
         <button class="close-btn" onclick="closeModal()">취소</button>
     </div>
 </div>
-
+<script>
+    window.addEventListener('load', () => {
+        const role = localStorage.getItem('my_app_role');
+        
+        if (role !== 'master') {
+            // [수정] .mood-input-group 추가 (메모 입력창과 저장 버튼 숨기기)
+            const hideList = document.querySelectorAll('#adminUpdateBtn, .btn-floating-write, .mood-input-group');
+            
+            hideList.forEach(el => {
+                if(el) el.style.display = 'none';
+            });
+        }
+    });
+</script>
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, deleteDoc, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
