@@ -29,6 +29,7 @@
 
         /* 화살표 아이콘 스타일 */
         .arrow-icon { font-size: 14px; color: #666; transition: 0.3s; transform: rotate(0deg); }
+        .arrow-icon { font-size: 14px; color: #666; transition: 0.3s; transform: rotate(0deg); }
         .active .arrow-icon { transform: rotate(180deg); color: #f3ba2f; }
 
         .card-detail { 
@@ -101,11 +102,9 @@
                     const data = s.data();
                     const id = s.id;
                     
-                    // 데이터 필드명 확인 및 안전한 폴백(0) 처리
                     const summary = data.summary || {};
                     const profit = summary.profit || 0;
                     const rate = summary.rate || "0.00";
-                    // 이미지에서 보이지 않던 시작 금액 필드 수정
                     const startAmt = summary.startAmount || summary.start || 0; 
                     const period = summary.period || 0;
                     const finalAmt = data.amount || 0;
@@ -113,10 +112,10 @@
                     const color = profit >= 0 ? "#00c087" : "#ff4d4d";
                     const sign = profit >= 0 ? "+" : "";
 
+                    // 리스트 생성 로직에서 <button class="btn-del"> 태그 부분만 삭제함
                     html += `
                         <div class="report-card" onclick="toggleCard(this)">
                             <div class="card-header">
-                                <button class="btn-del" onclick="deleteReport(event, '${id}')">&times;</button>
                                 <div class="header-main-info">
                                     <span class="report-date">${data.date ? data.date.split(' 오후')[0].split(' 오전')[0] : '날짜 없음'}</span>
                                     <span class="report-profit" style="color:${color}">${sign}${Number(profit).toLocaleString()}원 (${rate}%)</span>

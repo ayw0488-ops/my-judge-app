@@ -57,6 +57,11 @@
         .duration-badge { font-size: 11px; background: rgba(243, 186, 47, 0.2); color: #f3ba2f; padding: 2px 8px; border-radius: 6px; margin-left: 10px; font-weight: bold; display: inline-block; vertical-align: middle; }
         .img-upload-box { background: #000; border: 1px dashed #444; border-radius: 10px; padding: 10px; text-align: center; margin-bottom: 15px; cursor: pointer; }
         .img-preview { width: 100%; border-radius: 8px; margin-bottom: 10px; display: none; }
+
+        /* [수정 1] 영구 삭제 버튼 영역 초기 숨김 처리 (깜빡임 방지) */
+        #adminDelWrap { display: none; }
+        /* [수정 2] 관리자 전용 저장 버튼 이중 제어 클래스 */
+        .admin-save-btn { display: none; }
     </style>
 </head>
 <body>
@@ -68,7 +73,7 @@
     <div id="detailView" class="info-card">
         <div style="text-align:center; padding:50px;">데이터를 불러오는 중...</div>
     </div>
-    <div class="btn-delete-wrap">
+    <div class="btn-delete-wrap" id="adminDelWrap">
         <button class="btn-delete" onclick="window.deleteCurrentLog()">현재 일지 영구 삭제</button>
     </div>
 </div>
@@ -99,6 +104,10 @@
     const logId = urlParams.get('id');
     window.closeModal = function() { document.getElementById('infoModal').style.display = 'none'; }
     window.changeLeverage = async function() {
+        // [수정] 관리자 권한 체크
+        const role = localStorage.getItem('my_app_role');
+        if (role !== 'master') return;
+
         const newLev = prompt("변경할 새로운 배율(Leverage)을 입력하세요:");
         if (!newLev) return;
         const newEntry = prompt("바이비트에서 확인한 새로운 평단가(Entry Price)를 입력하세요:");
@@ -165,15 +174,25 @@
         const target = tps[idx];
         const p = parseFloat(target.price) || 0;
         const existingImg = target.img ? `<img src="${target.img}" class="modal-img">` : `<img id="previewImg" class="img-preview">`;
+        
+        // [수정] 관리자 권한 확인
+        const role = localStorage.getItem('my_app_role');
+        const isAdmin = role === 'master';
+
         body.innerHTML = `
             <div style="margin-bottom:10px; font-weight:bold; color:#00c087;">가격: ${p.toLocaleString()}</div>
+            ${isAdmin ? `
             <div class="img-upload-box" onclick="document.getElementById('fileInput').click()">
                 ${existingImg}
                 <span style="font-size:12px; color:#888;">🖼️ 이미지 첨부 (클릭)</span>
                 <input type="file" id="fileInput" style="display:none;" accept="image/*" onchange="window.handleImgPreview(this)">
             </div>
             <textarea id="tempTpReason" class="reason-text" placeholder="이 시점의 반익 근거를 상세히 기록하세요...">${target.detailReason || ""}</textarea>
-            <button class="save-btn" id="saveBtn" onclick="window.saveTpDetail(${idx})">기록 저장</button>
+            <button class="save-btn admin-save-btn" style="display:block;" id="saveBtn" onclick="window.saveTpDetail(${idx})">기록 저장</button>
+            ` : `
+            ${target.img ? `<img src="${target.img}" class="modal-img">` : ""}
+            <div class="reason-text">${target.detailReason || "기록된 반익 근거가 없습니다."}</div>
+            `}
             <button class="btn-back" style="width:100%; margin-top:10px;" onclick="window.openPartialReason()">목록으로 돌아가기</button>
         `;
     }
@@ -219,20 +238,33 @@
         document.getElementById('modalTitle').innerText = "완익 근거";
         const snap = await getDoc(doc(db, "tradeLogs", logId));
         const data = snap.data();
+        
+        // [수정] 관리자 권한 확인
+        const role = localStorage.getItem('my_app_role');
+        const isAdmin = role === 'master';
+
         if (data.status !== "종료") {
             body.innerHTML = "<div style='text-align:center; padding:20px;'>매매가 종료된 후에 작성 가능합니다.</div>";
         } else {
-            const existingImg = data.finishImg ? `<img src="${data.finishImg}" class="modal-img">` : `<img id="previewImgFinish" class="img-preview">`;
-            body.innerHTML = `
-                <div style="margin-bottom:10px; font-weight:bold; color:#f3ba2f;">종료 시간: ${data.endDate}</div>
-                <div class="img-upload-box" onclick="document.getElementById('fileInputFinish').click()">
-                    ${existingImg}
-                    <span style="font-size:12px; color:#888;">🖼️ 이미지 첨부 (클릭)</span>
-                    <input type="file" id="fileInputFinish" style="display:none;" accept="image/*" onchange="window.handleImgPreviewFinish(this)">
-                </div>
-                <textarea id="tempFinishReason" class="reason-text" placeholder="최종 매도(완익) 근거와 복기를 기록하세요...">${data.finishReason || ""}</textarea>
-                <button class="save-btn" id="finishSaveBtn" onclick="window.saveFinishReason()">완익 근거 저장</button>
-            `;
+            if (isAdmin) {
+                const existingImg = data.finishImg ? `<img src="${data.finishImg}" class="modal-img">` : `<img id="previewImgFinish" class="img-preview">`;
+                body.innerHTML = `
+                    <div style="margin-bottom:10px; font-weight:bold; color:#f3ba2f;">종료 시간: ${data.endDate}</div>
+                    <div class="img-upload-box" onclick="document.getElementById('fileInputFinish').click()">
+                        ${existingImg}
+                        <span style="font-size:12px; color:#888;">🖼️ 이미지 첨부 (클릭)</span>
+                        <input type="file" id="fileInputFinish" style="display:none;" accept="image/*" onchange="window.handleImgPreviewFinish(this)">
+                    </div>
+                    <textarea id="tempFinishReason" class="reason-text" placeholder="최종 매도(완익) 근거와 복기를 기록하세요...">${data.finishReason || ""}</textarea>
+                    <button class="save-btn admin-save-btn" style="display:block;" id="finishSaveBtn" onclick="window.saveFinishReason()">완익 근거 저장</button>
+                `;
+            } else {
+                body.innerHTML = `
+                    <div style="margin-bottom:10px; font-weight:bold; color:#f3ba2f;">종료 시간: ${data.endDate}</div>
+                    ${data.finishImg ? `<img src="${data.finishImg}" class="modal-img">` : ""}
+                    <div class="reason-text">${data.finishReason || "작성된 완익 근거가 없습니다."}</div>
+                `;
+            }
         }
         modal.style.display = 'flex';
     }
@@ -292,6 +324,13 @@
     async function loadDetail() {
         if (!logId) return;
         const detailView = document.getElementById('detailView');
+        const adminDelWrap = document.getElementById('adminDelWrap');
+        
+        // [수정] 권한 확인
+        const role = localStorage.getItem('my_app_role');
+        const isAdmin = role === 'master';
+        if (isAdmin && adminDelWrap) adminDelWrap.style.display = 'block';
+
         try {
             const docRef = doc(db, "tradeLogs", logId);
             const docSnap = await getDoc(docRef);
@@ -307,8 +346,10 @@
                 if (duration) durationHtml = `<span class="duration-badge">⏱️ ${duration}</span>`;
             }
             if (log.status === "진행 중") {
-                actionHtml = `<div class="action-section"><span class="action-title">✂️ 부분 익절 (반익)</span><div class="action-group"><input type="number" id="tpPrice" class="action-input" placeholder="반익 가격"><button class="btn-action btn-tp" onclick="window.partialTP()">반익 실행</button></div></div><div class="action-section"><span class="action-title">➕ 추가 매수 (추매)</span><div class="action-group"><input type="number" id="addPrice" class="action-input" placeholder="추매 가격"><button class="btn-action btn-add" onclick="window.addPosition()">추매 실행</button></div></div>`;
-                settleHtml = `<div class="settle-section"><span style="font-size:14px; font-weight:bold; color:#f3ba2f; display:block; margin-bottom:12px;">🏁 매매 종료하기</span><div style="display:flex; gap:10px;"><input type="number" id="sellPrice" style="flex:1; background:#121212; border:1px solid #444; padding:10px; border-radius:8px; color:#fff;" placeholder="종료 가격"><button class="btn-settle" onclick="window.finishTrade()">정산</button></div></div>`;
+                if (isAdmin) {
+                    actionHtml = `<div class="action-section"><span class="action-title">✂️ 부분 익절 (반익)</span><div class="action-group"><input type="number" id="tpPrice" class="action-input" placeholder="반익 가격"><button class="btn-action btn-tp" onclick="window.partialTP()">반익 실행</button></div></div><div class="action-section"><span class="action-title">➕ 추가 매수 (추매)</span><div class="action-group"><input type="number" id="addPrice" class="action-input" placeholder="추매 가격"><button class="btn-action btn-add" onclick="window.addPosition()">추매 실행</button></div></div>`;
+                    settleHtml = `<div class="settle-section"><span style="font-size:14px; font-weight:bold; color:#f3ba2f; display:block; margin-bottom:12px;">🏁 매매 종료하기</span><div style="display:flex; gap:10px;"><input type="number" id="sellPrice" style="flex:1; background:#121212; border:1px solid #444; padding:10px; border-radius:8px; color:#fff;" placeholder="종료 가격"><button class="btn-settle" onclick="window.finishTrade()">정산</button></div></div>`;
+                }
             } else {
                 const profitVal = parseFloat(log.actualProfit);
                 const profitColor = profitVal >= 0 ? "#24a0ed" : "#ff4d4d";
@@ -330,10 +371,15 @@
             const sPriceVal = parseFloat(log.stop) || 0;
             const levVal = parseFloat(log.leverage) || 0;
             const pProfit = parseFloat(log.partialProfit) || 0;
+            
+            // [수정] 배율 클릭 클래스 및 핸들러 조건부 적용
+            const levClass = isAdmin ? "lev-clickable" : "";
+            const levOnclick = isAdmin ? `onclick="window.changeLeverage()"` : "";
+
             detailView.innerHTML = `
                 <div class="info-header">
                     <div class="info-title" style="color: ${dirColor}">
-                        ${log.direction} <span class="lev-clickable" onclick="window.changeLeverage()">${levVal}x</span> 
+                        ${log.direction} <span class="${levClass}" ${levOnclick}>${levVal}x</span> 
                         <span style="color:#fff; font-weight:normal; margin-left:10px;">${log.coinName || ""}</span>
                         ${durationHtml}
                     </div>
@@ -344,7 +390,7 @@
                 <div class="data-grid">
                     <div class="data-item"><span class="data-label">현재 평단가</span><span class="data-value">${ePrice.toLocaleString()}</span></div>
                     <div class="data-item"><span class="data-label">손절 예상 가격</span><span class="data-value">${sPriceVal.toLocaleString()}</span></div>
-                    <div class="data-item"><span class="data-label">사용 배율 (클릭수정)</span><span class="data-value lev-clickable" onclick="window.changeLeverage()">${levVal}x</span></div>
+                    <div class="data-item"><span class="data-label">사용 배율 (클릭수정)</span><span class="data-value ${levClass}" ${levOnclick}>${levVal}x</span></div>
                     <div class="data-item"><span class="data-label">반익 합산</span><span class="data-value" style="color:#00c087">${pProfit}%</span></div>
                     <div class="data-item"><span class="data-label">남은 물량 비중</span><span class="data-value" style="color:#f3ba2f">${(displayVolume * 100).toFixed(0)}%</span></div>
                 </div>

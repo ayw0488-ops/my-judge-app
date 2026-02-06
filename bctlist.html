@@ -32,6 +32,9 @@
         
         /* 시간 표시 스타일 추가 */
         .log-duration { font-size: 11px; color: #f3ba2f; font-weight: 500; margin-left: 8px; }
+
+        /* [추가] 관리자 버튼 초기 숨김 (깜빡임 방지) */
+        .floating-btn, .btn-save { display: none; }
     </style>
 </head>
 <body>
@@ -46,7 +49,7 @@
     <div id="logList"><div style="text-align:center; color:#f3ba2f;">불러오는 중...</div></div>
 </div>
 
-<div class="floating-btn" onclick="window.openJournal()">+</div>
+<div class="floating-btn" id="adminFloatBtn" onclick="window.openJournal()">+</div>
 
 <div class="modal-overlay" id="journalModal">
     <div class="modal-content">
@@ -66,22 +69,21 @@
         <div class="input-group"><label>배율 (Leverage)</label><input type="number" id="journalLev" placeholder="예: 20" oninput="updateJournalCalc()"></div>
         <div class="input-group"><label>차트 이미지</label><input type="file" id="journalImg" accept="image/*" style="font-size:12px;"></div>
         <div class="input-group"><label>진입 근거</label><textarea id="journalReason"></textarea></div>
-        <button class="btn-save" onclick="saveJournal()">일지 저장</button>
+        <button class="btn-save" id="adminSaveBtn" onclick="saveJournal()">일지 저장</button>
     </div>
 </div>
 <script>
     window.addEventListener('load', () => {
         const role = localStorage.getItem('my_app_role');
         
-        // 도장이 'master'가 아니라면 (일반인이라면)
-        if (role !== 'master') {
-            // 리스트 페이지에서 숨길 버튼들:
-            // 1. 플러스(+) 플로팅 버튼 (.floating-btn)
-            // 2. 각 일지 카드 내부의 수정/삭제 기능 등 (있을 경우)
-            const hideList = document.querySelectorAll('.floating-btn, .btn-save, .close-x');
-            
-            hideList.forEach(el => {
-                if(el) el.style.display = 'none'; // 버튼 숨김
+        // [수정] 주인님('master')일 때만 버튼들을 노출시키는 로직으로 변경 (보안 강화)
+        if (role === 'master') {
+            const adminItems = document.querySelectorAll('#adminFloatBtn, #adminSaveBtn');
+            adminItems.forEach(el => {
+                if(el) {
+                    if(el.classList.contains('floating-btn')) el.style.display = 'flex';
+                    else el.style.display = 'block';
+                }
             });
         }
     });
@@ -105,7 +107,6 @@
     const db = getFirestore(app);
     const storage = getStorage(app);
 
-    // 시간 계산 함수 추가 (이미지에 있던 0분 표시 로직)
     function parseDate(dateStr) {
         if (!dateStr) return null;
         if (typeof dateStr === 'number') return dateStr;
@@ -133,7 +134,6 @@
         return result.trim();
     }
 
-    // [이식] calculator.html의 팝업 제어 및 계산 로직
     window.updateJournalCalc = function() {
         const entry = parseFloat(document.getElementById('journalEntry').value);
         const stop = parseFloat(document.getElementById('journalStop').value);
@@ -156,7 +156,6 @@
         document.getElementById('journalModal').style.display = 'none'; 
     };
 
-    // [이식] calculator.html의 saveJournal 로직
     window.saveJournal = async function() {
         const imgFile = document.getElementById('journalImg').files[0];
         let imageUrl = null;
@@ -212,7 +211,6 @@
         }
     };
 
-    // [기존 리스트 로드 로직] 삭제/생략 없이 요청사항만 수정
     let allLogs = [];
     window.loadLogs = async function(filter = 'all', btnElement = null) {
         const logList = document.getElementById('logList');
@@ -235,14 +233,17 @@
                 const isLong = log.direction && log.direction.includes("롱");
                 const borderColor = isLong ? "#00c087" : "#ff4d4d";
                 
-                // 시간 표시 HTML 생성 (날짜 옆에 붙이기 위해 span 사용)
                 let durationSpan = "";
                 if (log.status !== "진행 중" && log.endDate) {
                     durationSpan = `<span class="log-duration">${getDuration(log.timestamp || log.date, log.endDate)}</span>`;
                 }
 
+                const clickHandler = log.status === '진행 중' 
+                    ? `onclick="alert('진행 중인 포지션은 마감 후 상세 내용을 볼 수 있습니다.'); return false;"` 
+                    : `href="bctdetail.html?id=${log.id}"`;
+
                 return `
-                    <a href="bctdetail.html?id=${log.id}" class="log-card" style="border-left-color: ${borderColor}">
+                    <a ${clickHandler} class="log-card" style="border-left-color: ${borderColor}">
                         <div style="text-align:left;">
                             <div style="color:${borderColor}; font-weight:bold;">${log.direction} ${log.leverage}x <span style="background:#333; color:#fff; padding:2px 5px; border-radius:5px; font-size:12px; margin-left:5px;">${log.coinName}</span></div>
                             <div style="display: flex; align-items: center; margin-top: 5px;">
