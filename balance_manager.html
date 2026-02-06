@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance Manager - 독립 관리 도구</title>
+    <style>
+        body { margin: 0; background-color: #0a0a0a; color: #fff; font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .manager-container { width: 100%; max-width: 400px; padding: 20px; text-align: center; }
+        
+        .status-card { background: #161616; border: 1px solid #333; padding: 25px; border-radius: 20px; margin-bottom: 25px; position: relative; }
+        .session-tag { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #f3ba2f; color: #000; padding: 3px 12px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+        .amount-display { font-size: 28px; font-weight: 900; color: #f3ba2f; margin: 10px 0; display: block; }
+        .diff-display { font-size: 14px; font-weight: bold; min-height: 20px; }
+
+        .input-group { background: #1c1c1c; padding: 20px; border-radius: 20px; border: 1px solid #333; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; background: #000; border: 1px solid #444; border-radius: 10px; color: #fff; font-size: 16px; box-sizing: border-box; text-align: center; }
+        .btn-update { width: 100%; background: #f3ba2f; color: #000; border: none; padding: 15px; border-radius: 10px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; }
+
+        .history-section { background: #161616; border-radius: 20px; padding: 15px; border: 1px solid #333; max-height: 350px; overflow-y: auto; }
+        .history-title { font-size: 14px; color: #f3ba2f; margin-bottom: 15px; font-weight: bold; text-align: left; padding-left: 5px; }
+        .history-item { padding: 12px; border-bottom: 1px solid #222; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+        .history-info { display: flex; flex-direction: column; }
+        .history-date { font-size: 11px; color: #666; margin-bottom: 2px; }
+        .history-amt { font-size: 15px; font-weight: bold; color: #e0e0e0; }
+        .history-status { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 10px; }
+        .status-active { background: #1a3a2a; color: #00c087; }
+        .status-closed { background: #333; color: #888; }
+        
+        .summary-box { background: #222; padding: 10px; border-radius: 8px; border-left: 3px solid #f3ba2f; margin-top: 8px; font-size: 12px; color: #bbb; width: 100%; box-sizing: border-box; }
+        .btn-finish { width: 100%; background: none; border: 1px solid #ff4d4d; color: #ff4d4d; padding: 12px; border-radius: 10px; margin-top: 20px; font-weight: bold; cursor: pointer; }
+        .nav-link { display: block; margin-top: 20px; color: #888; text-decoration: none; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<div class="manager-container">
+    <div class="status-card">
+        <span class="session-tag" id="sessionLabel">프로젝트 대기중</span>
+        <span style="font-size: 12px; color: #888;">CURRENT BALANCE</span>
+        <span class="amount-display" id="currVal">0 원</span>
+        <div class="diff-display" id="diffVal"></div>
+    </div>
+
+    <div class="input-group">
+        <input type="number" id="balanceInput" placeholder="새로운 잔액 입력 (원)">
+        <button class="btn-update" onclick="updateAmount()">잔액 기록하기</button>
+    </div>
+
+    <div class="history-section">
+        <div class="history-title">내 잔액 기록 목록</div>
+        <div id="historyList">
+            <p style="color:#666; font-size:13px; text-align: center;">기록을 불러오는 중...</p>
+        </div>
+    </div>
+
+    <button class="btn-finish" onclick="finishProject()">🚩 이 프로젝트 마감 (리포트 생성)</button>
+    <a href="index.html" class="nav-link">← 메인 화면으로 돌아가기</a>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, deleteDoc, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAqbLB-bnniXhNj0XqtD0DlkWhk_2_0PkU",
+        authDomain: "sxsx-75c73.firebaseapp.com",
+        projectId: "sxsx-75c73",
+        storageBucket: "sxsx-75c73.firebasestorage.app",
+        messagingSenderId: "401139729279",
+        appId: "1:401139729279:web:2a41b315873137bfeb104a",
+        measurementId: "G-1200YV6S6K"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function loadHistory() {
+        // [수정] 인덱스 오류 방지를 위해 쿼리를 단순화하여 모든 데이터를 가져온 후 클라이언트에서 처리
+        const q = query(collection(db, "balanceHistory"), orderBy("timestamp", "desc"), limit(30));
+        const snap = await getDocs(q);
+        let html = "";
+        
+        snap.forEach(s => {
+            const d = s.data();
+            const isM = d.status === "마감";
+            const isActive = d.status === "진행중";
+            
+            html += `
+                <div class="history-card-wrapper" style="margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 10px;">
+                    <div class="history-item" style="border:none;">
+                        <div class="history-info">
+                            <span class="history-date">${d.date}</span>
+                            <span class="history-amt">${Number(d.amount).toLocaleString()} 원</span>
+                        </div>
+                        <div>
+                            ${isM ? '<span class="history-status" style="background:#ff4d4d; color:#fff;">마감리포트</span>' : ''}
+                            ${isActive ? '<span class="history-status status-active">진행중</span>' : '<span class="history-status status-closed">완료</span>'}
+                        </div>
+                    </div>
+                    ${isM ? `<div class="summary-box">🏆 <b>프로젝트 성적</b><br>수익: ${d.summary.profit.toLocaleString()}원 (${d.summary.rate}%)</div>` : ''}
+                </div>
+            `;
+        });
+        const historyListEl = document.getElementById('historyList');
+        if(historyListEl) historyListEl.innerHTML = html || "<p style='color:#666; text-align:center;'>기록이 없습니다.</p>";
+    }
+
+    async function refreshData() {
+        // [수정] 복합 색인 없이도 작동하도록 전체 데이터를 가져와 "진행중"만 필터링
+        const qAll = query(collection(db, "balanceHistory"), orderBy("timestamp", "desc"));
+        const snap = await getDocs(qAll);
+        const allDocs = snap.docs;
+        const docs = allDocs.filter(d => d.data().status === "진행중");
+
+        const currValEl = document.getElementById('currVal');
+        const diffValEl = document.getElementById('diffVal');
+        const labelEl = document.getElementById('sessionLabel');
+
+        if (docs.length > 0) {
+            const latest = docs[0].data();
+            currValEl.innerText = Number(latest.amount).toLocaleString() + " 원";
+            const start = docs[docs.length - 1].data();
+            labelEl.innerText = "진행중 (시작: " + (start.date ? start.date.split(' ')[0] : '미정') + ")";
+
+            if (docs.length > 1) {
+                const diff = latest.amount - docs[1].data().amount;
+                diffValEl.innerText = (diff > 0 ? "+" : "") + diff.toLocaleString() + " 원";
+                diffValEl.style.color = diff > 0 ? "#00c087" : "#ff4d4d";
+            } else { diffValEl.innerText = ""; }
+        } else {
+            currValEl.innerText = "0 원";
+            labelEl.innerText = "새 프로젝트 시작 가능";
+        }
+        await loadHistory();
+    }
+
+    window.updateAmount = async function() {
+        const amtInput = document.getElementById('balanceInput');
+        const amt = amtInput.value;
+        if (!amt) return;
+        try {
+            await addDoc(collection(db, "balanceHistory"), {
+                amount: parseFloat(amt),
+                date: new Date().toLocaleString(),
+                timestamp: Date.now(),
+                status: "진행중"
+            });
+            amtInput.value = "";
+            await refreshData();
+        } catch (e) { 
+            console.error(e);
+            alert("기록 실패: Firebase 설정을 확인하세요."); 
+        }
+    }
+
+    window.finishProject = async function() {
+        const qAll = query(collection(db, "balanceHistory"), orderBy("timestamp", "asc"));
+        const snap = await getDocs(qAll);
+        const activeDocs = snap.docs.filter(d => d.data().status === "진행중");
+        
+        if (activeDocs.length === 0) return;
+
+        const start = activeDocs[0].data();
+        const end = activeDocs[activeDocs.length - 1].data();
+        const profit = end.amount - start.amount;
+        const rate = start.amount === 0 ? 0 : ((profit / start.amount) * 100).toFixed(2);
+
+        if (!confirm(`마감하시겠습니까?\n총 수익: ${profit.toLocaleString()}원 (${rate}%)`)) return;
+
+        try {
+            const batch = writeBatch(db);
+            activeDocs.forEach(d => batch.update(doc(db, "balanceHistory", d.id), { status: "종료" }));
+            
+            const summaryRef = doc(collection(db, "balanceHistory"));
+            batch.set(summaryRef, {
+                amount: end.amount, date: new Date().toLocaleString(), timestamp: Date.now() + 5, status: "마감",
+                summary: { start: start.amount, profit, rate }
+            });
+            await batch.commit();
+            await refreshData();
+        } catch (e) {
+            console.error(e);
+            alert("마감 실패");
+        }
+    }
+
+    refreshData();
+</script>
+</body>
+</html>

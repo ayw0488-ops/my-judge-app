@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade History - 성적표 보관함</title>
+    <style>
+        body { margin: 0; background-color: #0a0a0a; color: #fff; font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { width: 100%; max-width: 400px; padding: 20px; text-align: center; }
+        
+        h2 { color: #f3ba2f; margin-bottom: 25px; font-weight: 900; letter-spacing: -1px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+        .report-card { 
+            background: #161616; border: 1px solid #333; border-radius: 12px; 
+            margin-bottom: 12px; cursor: pointer; transition: 0.2s; overflow: hidden;
+        }
+        .report-card:hover { border-color: #f3ba2f; }
+        
+        .card-header { 
+            padding: 12px 15px; display: flex; align-items: center; justify-content: space-between;
+        }
+
+        /* 삭제 버튼 왼쪽 배치 */
+        .btn-del { background: none; border: none; color: #ff4d4d; cursor: pointer; font-size: 18px; padding: 0 10px 0 0; font-weight: bold; }
+        
+        .header-main-info { flex-grow: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 10px; }
+        .report-date { font-size: 11px; color: #888; font-weight: bold; }
+        .report-profit { font-size: 14px; font-weight: 900; }
+
+        /* 화살표 아이콘 스타일 */
+        .arrow-icon { font-size: 14px; color: #666; transition: 0.3s; transform: rotate(0deg); }
+        .active .arrow-icon { transform: rotate(180deg); color: #f3ba2f; }
+
+        .card-detail { 
+            display: none; background: #1f1f1f; padding: 15px; border-top: 1px solid #333;
+            text-align: left; font-size: 12px; line-height: 1.8; color: #ccc;
+        }
+        .detail-item { display: flex; justify-content: space-between; border-bottom: 1px dotted #444; padding: 4px 0; }
+        .detail-val { color: #f3ba2f; font-weight: bold; }
+
+        .nav-link { display: block; margin-top: 30px; color: #666; text-decoration: none; font-size: 13px; font-weight: bold; }
+        .nav-link:hover { color: #f3ba2f; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🏆 TRADE REPORTS</h2>
+    <div id="reportList">
+        <p style="color:#444;">성적표를 불러오는 중...</p>
+    </div>
+    <a href="index.html" class="nav-link">← 메인 화면으로 돌아가기</a>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAqbLB-bnniXhNj0XqtD0DlkWhk_2_0PkU",
+        authDomain: "sxsx-75c73.firebaseapp.com",
+        projectId: "sxsx-75c73",
+        storageBucket: "sxsx-75c73.firebasestorage.app",
+        messagingSenderId: "401139729279",
+        appId: "1:401139729279:web:2a41b315873137bfeb104a",
+        measurementId: "G-1200YV6S6K"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.toggleCard = function(el) {
+        const detail = el.querySelector('.card-detail');
+        const isVisible = detail.style.display === 'block';
+        detail.style.display = isVisible ? 'none' : 'block';
+        el.classList.toggle('active', !isVisible);
+    }
+
+    window.deleteReport = async function(e, id) {
+        e.stopPropagation();
+        if(!confirm("이 성적표를 영구 삭제하시겠습니까?")) return;
+        try {
+            await deleteDoc(doc(db, "balanceHistory", id));
+            location.reload();
+        } catch (err) { alert("삭제 실패"); }
+    }
+
+    async function loadReports() {
+        const listDiv = document.getElementById('reportList');
+        try {
+            const q = query(collection(db, "balanceHistory"), orderBy("timestamp", "desc"));
+            const snap = await getDocs(q);
+            
+            let html = "";
+            const reports = snap.docs.filter(d => d.data().status === "마감");
+
+            if (reports.length === 0) {
+                html = "<p style='color:#666;'>마감된 성적표가 없습니다.</p>";
+            } else {
+                reports.forEach(s => {
+                    const data = s.data();
+                    const id = s.id;
+                    
+                    // 데이터 필드명 확인 및 안전한 폴백(0) 처리
+                    const summary = data.summary || {};
+                    const profit = summary.profit || 0;
+                    const rate = summary.rate || "0.00";
+                    // 이미지에서 보이지 않던 시작 금액 필드 수정
+                    const startAmt = summary.startAmount || summary.start || 0; 
+                    const period = summary.period || 0;
+                    const finalAmt = data.amount || 0;
+                    
+                    const color = profit >= 0 ? "#00c087" : "#ff4d4d";
+                    const sign = profit >= 0 ? "+" : "";
+
+                    html += `
+                        <div class="report-card" onclick="toggleCard(this)">
+                            <div class="card-header">
+                                <button class="btn-del" onclick="deleteReport(event, '${id}')">&times;</button>
+                                <div class="header-main-info">
+                                    <span class="report-date">${data.date ? data.date.split(' 오후')[0].split(' 오전')[0] : '날짜 없음'}</span>
+                                    <span class="report-profit" style="color:${color}">${sign}${Number(profit).toLocaleString()}원 (${rate}%)</span>
+                                </div>
+                                <span class="arrow-icon">▼</span>
+                            </div>
+                            <div class="card-detail">
+                                <div class="detail-item"><span>시작 원금</span><span class="detail-val">${Number(startAmt).toLocaleString()}원</span></div>
+                                <div class="detail-item"><span>최종 잔액</span><span class="detail-val">${Number(finalAmt).toLocaleString()}원</span></div>
+                                <div class="detail-item"><span>총 수익</span><span class="detail-val" style="color:${color}">${sign}${Number(profit).toLocaleString()}원</span></div>
+                                <div class="detail-item"><span>수익률</span><span class="detail-val" style="color:${color}">${rate}%</span></div>
+                                <div class="detail-item"><span>매매 기간</span><span class="detail-val">${period}일</span></div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            listDiv.innerHTML = html;
+        } catch (error) {
+            listDiv.innerHTML = "<p style='color:#ff4d4d;'>데이터를 불러올 수 없습니다.</p>";
+        }
+    }
+
+    loadReports();
+</script>
+</body>
+</html>

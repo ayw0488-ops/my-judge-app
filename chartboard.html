@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>차트 분석 게시판</title>
+    <style>
+        body { margin: 0; background-color: #121212; color: #e0e0e0; font-family: 'Pretendard', sans-serif; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 450px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .header h2 { color: #f3ba2f; margin: 0; font-size: 22px; cursor: pointer; }
+        .header h2 a { color: inherit; text-decoration: none; }
+        .btn-write { background: #f3ba2f; color: #000; border: none; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+
+        .post-card { background: #1e1e1e; border-radius: 20px; padding: 20px; margin-bottom: 20px; border: 1px solid #333; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; transition: 0.2s; }
+        .post-card:active { transform: scale(0.98); background: #252525; }
+        
+        .date-container { display: flex; align-items: baseline; gap: 8px; margin-bottom: 15px; }
+        .date-main { font-size: 22px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px; }
+        .time-accent { font-size: 15px; font-weight: 600; color: #f3ba2f; opacity: 0.9; }
+        .year-small { font-size: 12px; color: #666; margin-right: 2px; }
+
+        .post-img { width: 100%; border-radius: 12px; display: block; border: 1px solid #333; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
+        .modal-content { background: #1e1e1e; width: 100%; max-width: 400px; padding: 25px; border-radius: 20px; border: 1px solid #444; max-height: 90vh; overflow-y: auto; position: relative; }
+        
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 14px; color: #aaa; margin-bottom: 8px; }
+        input, textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #333; background: #2b2b2b; color: #fff; box-sizing: border-box; font-family: inherit; }
+        textarea { height: 150px; resize: none; }
+        
+        .btn-save { width: 100%; padding: 15px; border: none; background: #f3ba2f; color: #000; font-weight: bold; border-radius: 10px; cursor: pointer; font-size: 16px; }
+        .btn-save:disabled { background: #555; cursor: not-allowed; }
+
+        .view-date { font-size: 14px; color: #f3ba2f; margin-bottom: 15px; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .view-img { width: 100%; border-radius: 10px; margin-bottom: 20px; border: 1px solid #444; }
+        .view-text { font-size: 15px; line-height: 1.7; color: #ddd; white-space: pre-wrap; word-break: break-all; margin-bottom: 25px; }
+
+        .btn-delete { width: 100%; background: none; border: 1px solid #ff4d4d; color: #ff4d4d; padding: 10px; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 13px; margin-top: 10px; }
+        .btn-delete:hover { background: rgba(255, 77, 77, 0.1); }
+
+        .empty-msg { text-align: center; color: #666; margin-top: 100px; font-size: 15px; }
+        .close-x { position: absolute; top: 15px; right: 20px; font-size: 24px; color: #888; cursor: pointer; background: none; border: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2><a href="index.html">Chart Analysis</a></h2>
+        <button class="btn-write" onclick="openWriteModal()">분석 등록</button>
+    </div>
+
+    <div id="postList">
+        <div class="empty-msg">분석 데이터를 불러오는 중...</div>
+    </div>
+</div>
+
+<div class="modal" id="writeModal">
+    <div class="modal-content">
+        <button class="close-x" onclick="closeModal('writeModal')">&times;</button>
+        <h3 style="margin-top:0; color:#f3ba2f;">차트 분석 등록</h3>
+        <div class="input-group">
+            <label>차트 이미지</label>
+            <input type="file" id="postImgFile" accept="image/*">
+        </div>
+        <div class="input-group">
+            <label>분석 내용</label>
+            <textarea id="postContent" placeholder="차트 분석 내용을 작성하세요"></textarea>
+        </div>
+        <button class="btn-save" id="saveBtn" onclick="savePost()">등록하기</button>
+    </div>
+</div>
+
+<div class="modal" id="viewModal">
+    <div class="modal-content">
+        <button class="close-x" onclick="closeModal('viewModal')">&times;</button>
+        <div class="view-date" id="viewDate"></div>
+        <div id="viewImgArea"></div>
+        <div class="view-text" id="viewText"></div>
+        
+        <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 8px;">
+            <button onclick="closeModal('viewModal')" style="width: 100%; background: #333; border: none; color: #fff; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold;">닫기</button>
+            <button class="btn-delete" id="deleteBtn">이 분석 글 삭제</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAqbLB-bnniXhNj0XqtD0DlkWhk_2_0PkU",
+        authDomain: "sxsx-75c73.firebaseapp.com",
+        projectId: "sxsx-75c73",
+        storageBucket: "sxsx-75c73.firebasestorage.app",
+        messagingSenderId: "401139729279",
+        appId: "1:401139729279:web:2a41b315873137bfeb104a",
+        measurementId: "G-1200YV6S6K"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    window.openWriteModal = function() { document.getElementById('writeModal').style.display = 'flex'; }
+    window.closeModal = function(id) { document.getElementById(id).style.display = 'none'; }
+
+    // 상세보기 열기 및 삭제 이벤트 바인딩
+    window.openViewModal = function(id, date, imgUrl, content) {
+        document.getElementById('viewDate').innerText = "분석 일시: " + date;
+        document.getElementById('viewText').innerText = content || "내용이 없습니다.";
+        const imgArea = document.getElementById('viewImgArea');
+        imgArea.innerHTML = imgUrl ? `<img src="${imgUrl}" class="view-img">` : "";
+        
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.onclick = () => window.deletePost(id); // 현재 글 ID를 넘겨 삭제 실행
+        
+        document.getElementById('viewModal').style.display = 'flex';
+    }
+
+    // [추가] 삭제 함수
+    window.deletePost = async function(id) {
+        if (!confirm("이 분석 글을 영구 삭제하시겠습니까?")) return;
+        
+        const deleteBtn = document.getElementById('deleteBtn');
+        deleteBtn.innerText = "삭제 중...";
+        deleteBtn.disabled = true;
+
+        try {
+            await deleteDoc(doc(db, "chartPosts", id));
+            alert("삭제되었습니다.");
+            location.reload();
+        } catch (e) {
+            console.error(e);
+            alert("삭제 실패!");
+            deleteBtn.innerText = "이 분석 글 삭제";
+            deleteBtn.disabled = false;
+        }
+    }
+
+    function formatListDate(dateStr) {
+        try {
+            const parts = dateStr.split('. ');
+            const year = parts[0];
+            const monthDay = `${parts[1]}.${parts[2]}`;
+            const time = dateStr.split('오')[1] ? '오' + dateStr.split('오')[1].split(':').slice(0,2).join(':') : "";
+            
+            return `
+                <span class="year-small">${year}.</span>
+                <span class="date-main">${monthDay}</span>
+                <span class="time-accent">${time}</span>
+            `;
+        } catch(e) {
+            return dateStr;
+        }
+    }
+
+    async function loadPosts() {
+        const postList = document.getElementById('postList');
+        try {
+            const q = query(collection(db, "chartPosts"), orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+            
+            if (querySnapshot.empty) {
+                postList.innerHTML = '<div class="empty-msg">등록된 분석 데이터가 없습니다.</div>';
+                return;
+            }
+
+            let html = "";
+            querySnapshot.forEach((postDoc) => {
+                const data = postDoc.data();
+                const id = postDoc.id; // 문서 ID 추출
+                const imgHtml = data.imageUrl ? `<img src="${data.imageUrl}" class="post-img">` : "";
+                const formattedDate = formatListDate(data.date);
+                
+                // 데이터 전달 시 문서 ID(id)를 추가로 넘깁니다.
+                html += `
+                    <div class="post-card" onclick="openViewModal('${id}', '${data.date}', '${data.imageUrl || ''}', \`${data.content.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">
+                        <div class="date-container">${formattedDate}</div>
+                        ${imgHtml}
+                    </div>
+                `;
+            });
+            postList.innerHTML = html;
+        } catch (e) {
+            console.error(e);
+            postList.innerHTML = '<div class="empty-msg">데이터 로드 실패</div>';
+        }
+    }
+
+    window.savePost = async function() {
+        const content = document.getElementById('postContent').value;
+        const fileInput = document.getElementById('postImgFile');
+        const saveBtn = document.getElementById('saveBtn');
+
+        if (!content && !fileInput.files[0]) {
+            alert("이미지 또는 내용을 입력해주세요.");
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.innerText = "업로드 중...";
+
+        try {
+            let imageUrl = "";
+            if (fileInput.files[0]) {
+                const file = fileInput.files[0];
+                const storageRef = ref(storage, `chartPosts/${Date.now()}_${file.name}`);
+                await uploadBytes(storageRef, file);
+                imageUrl = await getDownloadURL(storageRef);
+            }
+
+            await addDoc(collection(db, "chartPosts"), {
+                content: content,
+                imageUrl: imageUrl,
+                date: new Date().toLocaleString(),
+                timestamp: Date.now()
+            });
+
+            alert("차트 분석이 등록되었습니다.");
+            location.reload();
+        } catch (e) {
+            console.error(e);
+            alert("저장 중 오류가 발생했습니다.");
+            saveBtn.disabled = false;
+            saveBtn.innerText = "등록하기";
+        }
+    }
+
+    loadPosts();
+</script>
+</body>
+</html>

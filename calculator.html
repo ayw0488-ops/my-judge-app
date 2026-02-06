@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>비트코인 선물 리스크 계산기</title>
+    <style>
+        body { margin: 0; background-color: #121212; color: #e0e0e0; font-family: 'Pretendard', sans-serif; display: flex; justify-content: center; padding: 20px; }
+        .calc-container { width: 100%; max-width: 400px; background: #1e1e1e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { text-align: center; color: #f3ba2f; margin-bottom: 25px; }
+        
+        .input-group { margin-bottom: 20px; }
+        label { display: block; font-size: 14px; margin-bottom: 8px; color: #aaa; }
+        input, textarea { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #333; background: #2b2b2b; color: #fff; font-size: 16px; box-sizing: border-box; font-family: inherit; }
+        textarea { resize: vertical; min-height: 80px; }
+        
+        .result-box { background: #2b2b2b; padding: 20px; border-radius: 15px; margin-top: 25px; border-left: 5px solid #f3ba2f; }
+        .result-item { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .result-label { color: #aaa; font-size: 14px; }
+        .result-value { font-weight: bold; color: #fff; font-size: 18px; }
+        .highlight { color: #f3ba2f; font-size: 22px; }
+        
+        .bottom-action-group { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-bottom { flex: 1; padding: 15px; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.3s; box-sizing: border-box; display: flex; align-items: center; justify-content: center; text-decoration: none; }
+        
+        .btn-list { border: 1px solid #555; background: transparent; color: #fff; }
+        .btn-list:hover { background: #333; }
+        
+        .btn-journal-open { border: 1px solid #f3ba2f; background: transparent; color: #f3ba2f; }
+        .btn-journal-open:hover { background: #f3ba2f; color: #000; }
+        
+        .btn-save { width: 100%; padding: 15px; border-radius: 10px; border: none; background: #f3ba2f; color: #000; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
+        .modal-content { background: #1e1e1e; width: 100%; max-width: 400px; padding: 25px; border-radius: 20px; max-height: 90vh; overflow-y: auto; border: 1px solid #333; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .close-btn { background: none; border: none; color: #aaa; font-size: 24px; cursor: pointer; }
+
+        .journal-preview { background: #2b2b2b; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; border: 1px dashed #444; }
+    </style>
+</head>
+<body>
+
+<div class="calc-container">
+    <div style="text-align: left; margin-bottom: 10px;">
+        <a href="index.html" style="color: #888; text-decoration: none; font-size: 13px;">← 메인으로</a>
+    </div>
+    <h2>Futures Risk Calc</h2>
+    
+    <div class="input-group">
+        <label>진입가 (Entry Price)</label>
+        <input type="number" id="entryPrice" placeholder="예: 1000" oninput="calculate()">
+    </div>
+    <div class="input-group">
+        <label>손절가 (Stop Loss)</label>
+        <input type="number" id="stopPrice" placeholder="예: 1020" oninput="calculate()">
+    </div>
+    <div class="input-group">
+        <label>목표 손실률 (%)</label>
+        <input type="number" id="targetLoss" value="20" oninput="calculate()">
+    </div>
+    <div class="input-group">
+        <label>투자 원금 (보유 자산)</label>
+        <input type="number" id="seedMoney" placeholder="예: 1000000" oninput="calculate()">
+    </div>
+
+    <div class="result-box" id="resultArea">
+        <div class="result-item"><span class="result-label">포지션</span><span id="direction" class="result-value">-</span></div>
+        <div class="result-item"><span class="result-label">변동폭</span><span id="priceDiff" class="result-value">0%</span></div>
+        <div class="result-item" style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+            <span class="result-label">추천 레버리지</span><span id="leverage" class="result-value highlight">0x</span>
+        </div>
+        <div class="result-item"><span class="result-label">손절 시 잔고</span><span id="remains" class="result-value" style="color:#ff4d4d;">0원</span></div>
+    </div>
+
+    <div class="bottom-action-group">
+        <a href="bctlist.html" class="btn-bottom btn-list">📊 일지 목록</a>
+        <button class="btn-bottom btn-journal-open" onclick="openJournal()">📒 일지 작성</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="journalModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 style="margin:0; color:#f3ba2f;">New Trade Journal</h3>
+            <button class="close-btn" onclick="closeJournal()">&times;</button>
+        </div>
+
+        <div class="journal-preview">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span>포지션: <b id="j-dir">-</b></span>
+                <span>손절 시 손실률: <b id="j-loss">0%</b></span>
+            </div>
+        </div>
+
+        <div class="input-group"><label>코인 종목</label><input type="text" id="journalCoin" placeholder="예: BTC, ETH"></div>
+        <div class="input-group"><label>진입가</label><input type="number" id="journalEntry" oninput="updateJournalCalc()"></div>
+        <div class="input-group"><label>손절가</label><input type="number" id="journalStop" oninput="updateJournalCalc()"></div>
+        
+        <div class="input-group">
+            <label>배율 (Leverage)</label>
+            <input type="number" id="journalLev" placeholder="예: 20" oninput="updateJournalCalc()">
+        </div>
+
+        <div class="input-group"><label>차트 이미지</label><input type="file" id="journalImg" accept="image/*" style="font-size:12px;"></div>
+        <div class="input-group"><label>진입 근거</label><textarea id="journalReason"></textarea></div>
+        
+        <button class="btn-save" onclick="saveJournal()">일지 저장</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAqbLB-bnniXhNj0XqtD0DlkWhk_2_0PkU",
+        authDomain: "sxsx-75c73.firebaseapp.com",
+        projectId: "sxsx-75c73",
+        storageBucket: "sxsx-75c73.firebasestorage.app",
+        messagingSenderId: "401139729279",
+        appId: "1:401139729279:web:2a41b315873137bfeb104a",
+        measurementId: "G-1200YV6S6K"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    window.calculate = function() {
+        const entry = parseFloat(document.getElementById('entryPrice').value);
+        const stop = parseFloat(document.getElementById('stopPrice').value);
+        const targetLoss = parseFloat(document.getElementById('targetLoss').value);
+        const seed = parseFloat(document.getElementById('seedMoney').value) || 0;
+        if (!entry || !stop || !targetLoss) return;
+
+        const isLong = entry > stop;
+        const priceChangePercent = (Math.abs(entry - stop) / entry) * 100;
+        const leverage = targetLoss / priceChangePercent;
+
+        document.getElementById('direction').innerText = isLong ? "롱 🟢" : "숏 🔴";
+        document.getElementById('direction').style.color = isLong ? "#00c087" : "#ff4d4d";
+        document.getElementById('priceDiff').innerText = priceChangePercent.toFixed(2) + "%";
+        document.getElementById('leverage').innerText = leverage.toFixed(1) + "x";
+        document.getElementById('remains').innerText = (seed * (1 - (targetLoss / 100))).toLocaleString() + "원";
+    };
+
+    window.updateJournalCalc = function() {
+        const entry = parseFloat(document.getElementById('journalEntry').value);
+        const stop = parseFloat(document.getElementById('journalStop').value);
+        const lev = parseFloat(document.getElementById('journalLev').value) || 0;
+        
+        if (!entry || !stop) return;
+
+        const isLong = entry > stop;
+        const priceChangePercent = (Math.abs(entry - stop) / entry) * 100;
+        
+        const totalLossPercent = (priceChangePercent * lev) + (lev / 10);
+
+        document.getElementById('j-dir').innerText = isLong ? "롱 🟢" : "숏 🔴";
+        document.getElementById('j-dir').style.color = isLong ? "#00c087" : "#ff4d4d";
+        document.getElementById('j-loss').innerText = totalLossPercent.toFixed(2) + "%";
+    };
+
+    window.openJournal = function() {
+        const fields = ['journalCoin', 'journalEntry', 'journalStop', 'journalLev', 'journalReason', 'journalImg'];
+        fields.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.value = "";
+        });
+        document.getElementById('j-dir').innerText = "-";
+        document.getElementById('j-loss').innerText = "0%";
+        document.getElementById('journalModal').style.display = 'flex';
+    };
+
+    window.closeJournal = function() { 
+        document.getElementById('journalModal').style.display = 'none'; 
+        // [수정] 어디서 왔는지 확인하여 이전 페이지로 복귀하거나 메인으로 이동
+        if (document.referrer.includes('bctlist.html')) {
+            location.href = 'bctlist.html';
+        } else {
+            location.href = 'index.html';
+        }
+    };
+
+    window.saveJournal = async function() {
+        const imgFile = document.getElementById('journalImg').files[0];
+        let imageUrl = null;
+
+        const saveBtn = document.querySelector('.btn-save');
+        saveBtn.innerText = "서버 저장 중...";
+        saveBtn.disabled = true;
+
+        try {
+            if (imgFile) {
+                const reader = new FileReader();
+                const fileData = await new Promise((resolve) => {
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(imgFile);
+                });
+                
+                const storageRef = ref(storage, 'trade_images/' + Date.now());
+                await uploadString(storageRef, fileData, 'data_url');
+                imageUrl = await getDownloadURL(storageRef);
+            }
+
+            const journalData = {
+                coinName: document.getElementById('journalCoin').value || "Unknown",
+                entry: document.getElementById('journalEntry').value,
+                stop: document.getElementById('journalStop').value,
+                leverage: document.getElementById('journalLev').value,
+                direction: document.getElementById('j-dir').innerText,
+                expectedLoss: document.getElementById('j-loss').innerText,
+                reason: document.getElementById('journalReason').value,
+                date: new Date().toLocaleString(),
+                img: imageUrl,
+                status: "진행 중",
+                endDate: null,
+                timestamp: Date.now(),
+                partialProfit: 0,
+                tradeHistory: [] 
+            };
+            
+            await addDoc(collection(db, "tradeLogs"), journalData);
+            location.href = 'bctlist.html';
+        } catch (error) {
+            console.error("Error: ", error);
+            alert("서버 저장 실패!");
+            saveBtn.innerText = "일지 저장";
+            saveBtn.disabled = false;
+        }
+    };
+
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('write') === 'true') {
+            window.openJournal();
+        }
+    };
+</script>
+</body>
+</html>
