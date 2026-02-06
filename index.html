@@ -3,93 +3,235 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>로그인 - 내탓네탓</title>
+    <title>Trade Master - Main</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* 기존 스타일 유지 */
-        body { margin: 0; background-color: #ffffff; font-family: 'Pretendard', sans-serif; color: #333333; }
-        .mobile-container {
-            width: 100%; max-width: 430px; min-height: 100vh; margin: 0 auto;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 40px; box-sizing: border-box;
-        }
-        .logo-area { text-align: center; margin-bottom: 50px; }
-        .logo-icon { font-size: 50px; margin-bottom: 10px; display: block; }
-        .logo-title { color: #000000; margin-bottom: 5px; line-height: 1.1; }
-        .title-bold { font-size: 38px; font-weight: 900; letter-spacing: -1.5px; display: block; }
-        .title-light { font-weight: 200; font-size: 20px; display: block; margin-top: 2px; }
-        .logo-sub { font-size: 15px; color: #888; margin-top: 15px; }
+        body { margin: 0; background-color: #121212; color: #e0e0e0; font-family: 'Pretendard', sans-serif; height: 100vh; display: flex; justify-content: center; align-items: flex-start; overflow-x: hidden; }
+        .main-container { width: 100%; max-width: 400px; padding: 20px; text-align: center; position: relative; }
+        
+        /* 상단 헤더 */
+        .top-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 25px; padding-top: 10px; width: 100%; }
+        .logo-section { text-align: left; flex-shrink: 0; cursor: default; }
+        .logo-section h1 { color: #f3ba2f; font-size: 18px; font-weight: 900; margin: 0; letter-spacing: -1px; }
+        .logo-section p { color: #ffffff; margin-top: 2px; font-size: 10px; opacity: 0.9; margin-bottom: 0; }
 
-        .login-group { width: 100%; display: flex; flex-direction: column; gap: 15px; }
-        .login-btn {
-            width: 100%; height: 55px; border-radius: 12px; border: none;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s;
-        }
-        .btn-kakao { background-color: #FEE500; color: #3c1e1e; }
-        .btn-google { background-color: #ffffff; color: #757575; border: 1px solid #ddd; }
-        .login-btn:active { transform: scale(0.98); opacity: 0.9; }
+        /* [수정] 잔액 박스: 연필 버튼을 내부 오른쪽 끝에 배치하기 위해 relative 유지 */
+        .balance-box { background: #1e1e1e; border: 1px solid #333; padding: 8px 12px; border-radius: 12px; flex-grow: 1; box-shadow: 0 4px 15px rgba(0,0,0,0.2); min-width: 0; position: relative; display: flex; flex-direction: column; justify-content: center; height: 45px; }
+        .balance-label { font-size: 8px; color: #ffffff; margin-bottom: 1px; display: block; opacity: 0.8; text-align: left; }
+        .balance-amount { font-size: 14px; font-weight: 900; color: #f3ba2f; white-space: nowrap; text-align: left; padding-right: 25px; } /* 연필 자리를 위한 패딩 */
+        .balance-diff { font-size: 10px; font-weight: bold; position: absolute; left: 60px; bottom: 8px; } /* 위치 조정 */
+        .start-date-label { font-size: 10px; font-weight: bold; color: #f3ba2f; position: absolute; top: -18px; left: 50%; transform: translateX(-50%); white-space: nowrap; }
 
-        /* 요청하신 화이트 폰트 스타일 */
-        .info-text { margin-top: 30px; font-size: 12px; color: #999; text-align: center; line-height: 1.6; }
-        .highlight { color: white; background-color: #333; padding: 2px 6px; border-radius: 4px; }
+        /* [수정] 연필 버튼: 잔액 박스 오른쪽 끝에 고정 */
+        .btn-edit-inline { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #f3ba2f; cursor: pointer; font-size: 16px; padding: 5px; z-index: 2; }
+
+        /* [수정] 기록 버튼: 우측 빈자리를 채우는 네모난 버튼 */
+        .header-btns { flex-shrink: 0; }
+        .btn-balance-record { background: #1e1e1e; color: #ffffff; border: 1px solid #333; width: 60px; height: 63px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; font-size: 12px; font-weight: bold; }
+        .btn-balance-record:hover { border-color: #f3ba2f; color: #f3ba2f; }
+
+        /* 이하 기존 코드 절대 보존 */
+        .mood-section { margin-bottom: 20px; text-align: left; background: #1e1e1e; padding: 15px; border-radius: 15px; border: 1px solid #333; }
+        .mood-title { font-size: 12px; color: #f3ba2f; font-weight: bold; margin-bottom: 10px; display: block; }
+        .mood-input-group { display: flex; gap: 8px; margin-bottom: 10px; }
+        .mood-input { flex-grow: 1; background: #121212; border: 1px solid #444; border-radius: 8px; padding: 8px; color: #fff; font-size: 13px; }
+        .mood-btn { background: #f3ba2f; color: #000; border: none; border-radius: 8px; padding: 0 12px; font-weight: bold; cursor: pointer; }
+        .latest-mood-container { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; cursor: pointer; }
+        .mood-list { display: none; max-height: 200px; overflow-y: auto; margin-top: 10px; }
+        .mood-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dotted #333; font-size: 12px; }
+        .mood-time { color: #888; font-size: 10px; margin-right: 8px; white-space: nowrap; }
+        .mood-text { flex-grow: 1; color: #e0e0e0; }
+        .mood-del { color: #ff4d4d; background: none; border: none; cursor: pointer; font-weight: bold; padding: 0 5px; }
+        .chart-container { background: #1e1e1e; border: 1px solid #333; border-radius: 20px; padding: 15px; margin-bottom: 20px; height: 200px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .menu-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .menu-btn { display: flex; align-items: center; justify-content: center; padding: 15px; border-radius: 12px; text-decoration: none; font-size: 14px; font-weight: bold; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); background-color: #1e1e1e; color: #f3ba2f; border: 1px solid #333; }
+        .btn-chart { color: #ffffff; }
+        .btn-icon { margin-right: 8px; font-size: 18px; }
+        .btn-floating-write { position: fixed; right: 20px; bottom: 20px; width: 60px; height: 60px; background-color: #f3ba2f; color: #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; text-decoration: none; box-shadow: 0 4px 15px rgba(243, 186, 47, 0.4); z-index: 999; transition: 0.3s; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
+        .modal-content { background: #1e1e1e; width: 100%; max-width: 350px; padding: 25px; border-radius: 20px; border: 1px solid #444; max-height: 80vh; overflow-y: auto; }
+        .btn-finish { width: 100%; padding: 12px; background: none; border: 1px solid #ff4d4d; color: #ff4d4d; border-radius: 10px; margin-top: 10px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .close-btn { width: 100%; padding: 12px; background: #333; color: #fff; border: none; border-radius: 10px; margin-top: 15px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="mobile-container">
-        <div class="logo-area">
-            <span class="logo-icon">⚖️</span>
-            <div class="logo-title">
-                <span class="title-bold">내탓네탓</span>
-                <span class="title-light">: 이게 내 잘못이야?</span>
-            </div>
-            <div class="logo-sub">억울한 마음, 시원한 판결</div>
+
+<div class="main-container">
+    <div class="top-header">
+        <div class="logo-section">
+            <h1>TRADE LOG</h1>
+            <p>기록은 배신하지 않습니다.</p>
+        </div>
+        
+        <div class="balance-box">
+            <span class="start-date-label" id="startDateDisplay">프로젝트 시작 전</span>
+            <span class="balance-label">TOTAL ASSETS</span>
+            <span class="balance-amount" id="currentBalance">0 원</span>
+            <span class="balance-diff" id="balanceDiff"></span>
+            <button class="btn-edit-inline" id="adminUpdateBtn" onclick="location.href='balance_manager.html'">✏️</button>
         </div>
 
-        <div class="login-group">
-            <button class="login-btn btn-kakao" onclick="handleLogin('kakao')">
-                카카오로 시작하기
-            </button>
-            <button class="login-btn btn-google" onclick="handleLogin('google')">
-                구글로 시작하기
-            </button>
+        <div class="header-btns">
+            <button class="btn-balance-record" onclick="location.href='trade_history.html'">기록</button>
         </div>
-
-        <p class="info-text">
-            로그인 시 이용약관 및 개인정보 처리방침에 동의하게 되며,<br>
-            서비스 분석을 위해 <span class="highlight">나이와 성별</span> 정보를 수집합니다.
-        </p>
     </div>
 
-    <script>
-        function handleLogin(platform) {
-            const mockSocialId = platform + "_user_12345";
-            let allUsers = JSON.parse(localStorage.getItem('registeredUsers') || '{}');
-            
-            if (allUsers[mockSocialId]) {
-                alert("반가워요! 다시 오셨군요.");
-                localStorage.setItem('currentUser', JSON.stringify(allUsers[mockSocialId]));
-                
-                // 1. 뒤로가기 방지를 위해 replace 사용
-                location.replace('main.html'); 
-            } else {
-                alert("신규 가입을 환영합니다! 가입 처리를 완료합니다.");
-                
-                // 금색 코인 규칙 적용: 질문(100), 재심(300) [cite: 2026-01-29]
-                const newUser = {
-                    id: mockSocialId,
-                    platform: platform,
-                    joinDate: new Date().toISOString(),
-                    coins: 1000 // 초기 코인 설정 (예시)
-                };
-                
-                allUsers[mockSocialId] = newUser;
-                localStorage.setItem('registeredUsers', JSON.stringify(allUsers));
-                localStorage.setItem('currentUser', JSON.stringify(newUser));
-                
-                // 2. 뒤로가기 방지를 위해 replace 사용
-                location.replace('main.html');
-            }
+    <div class="mood-section">
+        <span class="mood-title">&lt;지금 내 심정은...&gt;</span>
+        <div class="mood-input-group">
+            <input type="text" id="moodInput" class="mood-input" placeholder="현재 심정을 입력하세요">
+            <button class="mood-btn" onclick="saveMood()">저장</button>
+        </div>
+        <div class="latest-mood-container" onclick="toggleMoodList()">
+            <div id="latestMoodDisplay" style="font-size: 13px; color: #fff; text-align: left;">메모가 없습니다.</div>
+            <span class="expand-arrow" id="moodArrow">▼</span>
+        </div>
+        <div id="moodList" class="mood-list"></div>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="assetChart"></canvas>
+    </div>
+
+    <div class="menu-group">
+        <a href="bctlist.html" class="menu-btn"><span class="btn-icon">📂</span> 목록</a>
+        <a href="chartboard.html" class="menu-btn btn-chart"><span class="btn-icon">📈</span> 분석</a>
+    </div>
+</div>
+
+<a href="calculator.html?write=true" class="btn-floating-write">＋</a>
+
+<div class="modal" id="historyModal">
+    <div class="modal-content">
+        <h3 style="margin-top:0; color:#f3ba2f; text-align:center;">Project Finish</h3>
+        <p style="font-size:13px; color:#ffffff; text-align:center; line-height:1.5;">현재 프로젝트를 마감하시겠습니까?<br>마감 시 메인 화면의 잔액은 0원으로 초기화됩니다.</p>
+        <button class="btn-finish" onclick="finishProject()">🚩 프로젝트 마감 및 초기화</button>
+        <button class="close-btn" onclick="closeModal()">취소</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, deleteDoc, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyAqbLB-bnniXhNj0XqtD0DlkWhk_2_0PkU",
+        authDomain: "sxsx-75c73.firebaseapp.com",
+        projectId: "sxsx-75c73",
+        storageBucket: "sxsx-75c73.firebasestorage.app",
+        messagingSenderId: "401139729279",
+        appId: "1:401139729279:web:2a41b315873137bfeb104a",
+        measurementId: "G-1200YV6S6K"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    let myChart = null; 
+
+    window.toggleMoodList = function() {
+        const list = document.getElementById('moodList');
+        const container = document.querySelector('.latest-mood-container');
+        list.style.display = list.style.display === 'block' ? 'none' : 'block';
+        container.classList.toggle('active');
+    }
+
+    window.saveMood = async function() {
+        const input = document.getElementById('moodInput');
+        if(!input.value) return;
+        try {
+            await addDoc(collection(db, "moodDiary"), {
+                content: input.value, timestamp: Date.now(),
+                dateStr: new Date().toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            });
+            input.value = "";
+            fetchMoods();
+        } catch (e) { alert("저장 실패"); }
+    }
+
+    async function fetchMoods() {
+        const q = query(collection(db, "moodDiary"), orderBy("timestamp", "desc"));
+        const snap = await getDocs(q);
+        let html = "";
+        let index = 0;
+        if (snap.empty) {
+            document.getElementById('latestMoodDisplay').innerText = "메모가 없습니다.";
+            document.getElementById('moodList').innerHTML = "";
+            return;
         }
-    </script>
+        snap.forEach(s => {
+            const data = s.data();
+            if (index === 0) document.getElementById('latestMoodDisplay').innerText = data.content;
+            html += `<div class="mood-item"><span class="mood-time">${data.dateStr}</span><span class="mood-text">${data.content}</span><button class="mood-del" onclick="deleteMood('${s.id}')">×</button></div>`;
+            index++;
+        });
+        document.getElementById('moodList').innerHTML = html;
+    }
+
+    window.deleteMood = async function(id) {
+        if(!confirm("삭제할까요?")) return;
+        await deleteDoc(doc(db, "moodDiary", id));
+        fetchMoods();
+    }
+
+    async function fetchLatestBalance() {
+        const qAll = query(collection(db, "balanceHistory"), orderBy("timestamp", "asc"));
+        const snapAll = await getDocs(qAll);
+        const activeDocs = snapAll.docs.filter(d => d.data().status === "진행중");
+        const balanceEl = document.getElementById('currentBalance');
+        const diffEl = document.getElementById('balanceDiff');
+        const dateEl = document.getElementById('startDateDisplay');
+        if (activeDocs.length === 0) {
+            balanceEl.innerText = "0 원"; diffEl.innerText = ""; dateEl.innerText = "프로젝트 시작 전";
+            updateChart([], []); return;
+        }
+        const latestData = activeDocs[activeDocs.length - 1].data();
+        balanceEl.innerText = Number(latestData.amount).toLocaleString() + " 원";
+        const firstActive = activeDocs[0].data();
+        if(firstActive.date) {
+            const p = firstActive.date.split('. ');
+            dateEl.innerText = `시작일: ${p[0]}.${p[1]}.${p[2]}`;
+        }
+        if (activeDocs.length > 1) {
+            const diff = activeDocs[activeDocs.length - 1].data().amount - activeDocs[activeDocs.length - 2].data().amount;
+            if (diff > 0) { diffEl.innerText = "+" + diff.toLocaleString() + " 원"; diffEl.style.color = "#00c087"; }
+            else if (diff < 0) { diffEl.innerText = diff.toLocaleString() + " 원"; diffEl.style.color = "#ff4d4d"; }
+            else { diffEl.innerText = "0 원"; diffEl.style.color = "#888"; }
+        } else { diffEl.innerText = ""; }
+        updateChart(activeDocs.map(d => d.data().date.split('. ')[2] + '일'), activeDocs.map(d => d.data().amount));
+    }
+
+    function updateChart(labels, data) {
+        const ctx = document.getElementById('assetChart').getContext('2d');
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{ label: 'Asset', data: data, borderColor: '#f3ba2f', backgroundColor: 'rgba(243, 186, 47, 0.1)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#f3ba2f' }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: '#ffffff', font: { size: 10 } } }, y: { grid: { color: '#444' }, ticks: { color: '#ffffff', font: { size: 10 }, callback: (v) => v.toLocaleString() }, beginAtZero: false } } }
+        });
+    }
+
+    window.finishProject = async function() {
+        const qAll = query(collection(db, "balanceHistory"), orderBy("timestamp", "asc"));
+        const snap = await getDocs(qAll);
+        const activeDocs = snap.docs.filter(d => d.data().status === "진행중");
+        if (activeDocs.length === 0) return;
+        const startData = activeDocs[0].data();
+        const lastData = activeDocs[activeDocs.length - 1].data();
+        if(!confirm(`마감 시 잔액은 0원으로 리셋됩니다.`)) return;
+        const batch = writeBatch(db);
+        activeDocs.forEach((d) => batch.update(doc(db, "balanceHistory", d.id), { status: "마감완료" }));
+        const summaryRef = doc(collection(db, "balanceHistory"));
+        batch.set(summaryRef, {
+            amount: lastData.amount, date: new Date().toLocaleString(), timestamp: Date.now() + 100, status: "마감",
+            summary: { startAmount: startData.amount, profit: lastData.amount - startData.amount, rate: ((lastData.amount - startData.amount) / startData.amount * 100).toFixed(2), period: Math.floor((lastData.timestamp - startData.timestamp) / 86400000) + 1, startDate: startData.date }
+        });
+        await batch.commit(); location.reload();
+    }
+
+    window.closeModal = () => document.getElementById('historyModal').style.display = 'none';
+
+    fetchLatestBalance();
+    fetchMoods();
+</script>
 </body>
 </html>
