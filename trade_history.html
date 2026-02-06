@@ -20,15 +20,14 @@
             padding: 12px 15px; display: flex; align-items: center; justify-content: space-between;
         }
 
-        /* 삭제 버튼 왼쪽 배치 */
-        .btn-del { background: none; border: none; color: #ff4d4d; cursor: pointer; font-size: 18px; padding: 0 10px 0 0; font-weight: bold; }
+        /* 삭제 버튼 스타일 */
+        .btn-del { background: none; border: none; color: #ff4d4d; cursor: pointer; font-size: 22px; padding: 0 15px 0 5px; font-weight: bold; line-height: 1; position: relative; z-index: 10; }
         
         .header-main-info { flex-grow: 1; display: flex; justify-content: space-between; align-items: center; margin-right: 10px; }
         .report-date { font-size: 11px; color: #888; font-weight: bold; }
         .report-profit { font-size: 14px; font-weight: 900; }
 
         /* 화살표 아이콘 스타일 */
-        .arrow-icon { font-size: 14px; color: #666; transition: 0.3s; transform: rotate(0deg); }
         .arrow-icon { font-size: 14px; color: #666; transition: 0.3s; transform: rotate(0deg); }
         .active .arrow-icon { transform: rotate(180deg); color: #f3ba2f; }
 
@@ -72,22 +71,27 @@
 
     window.toggleCard = function(el) {
         const detail = el.querySelector('.card-detail');
+        if (!detail) return;
         const isVisible = detail.style.display === 'block';
         detail.style.display = isVisible ? 'none' : 'block';
         el.classList.toggle('active', !isVisible);
     }
 
     window.deleteReport = async function(e, id) {
-        e.stopPropagation();
+        e.stopPropagation(); 
         if(!confirm("이 성적표를 영구 삭제하시겠습니까?")) return;
         try {
             await deleteDoc(doc(db, "balanceHistory", id));
             location.reload();
-        } catch (err) { alert("삭제 실패"); }
+        } catch (err) { 
+            console.error(err);
+            alert("삭제 실패: 권한이 없거나 서버 오류입니다."); 
+        }
     }
 
     async function loadReports() {
         const listDiv = document.getElementById('reportList');
+        
         try {
             const q = query(collection(db, "balanceHistory"), orderBy("timestamp", "desc"));
             const snap = await getDocs(q);
@@ -112,10 +116,10 @@
                     const color = profit >= 0 ? "#00c087" : "#ff4d4d";
                     const sign = profit >= 0 ? "+" : "";
 
-                    // 리스트 생성 로직에서 <button class="btn-del"> 태그 부분만 삭제함
                     html += `
                         <div class="report-card" onclick="toggleCard(this)">
                             <div class="card-header">
+                                <button class="btn-del" onclick="deleteReport(event, '${id}')">×</button>
                                 <div class="header-main-info">
                                     <span class="report-date">${data.date ? data.date.split(' 오후')[0].split(' 오전')[0] : '날짜 없음'}</span>
                                     <span class="report-profit" style="color:${color}">${sign}${Number(profit).toLocaleString()}원 (${rate}%)</span>
@@ -135,6 +139,7 @@
             }
             listDiv.innerHTML = html;
         } catch (error) {
+            console.error(error);
             listDiv.innerHTML = "<p style='color:#ff4d4d;'>데이터를 불러올 수 없습니다.</p>";
         }
     }
